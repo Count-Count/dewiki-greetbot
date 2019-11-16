@@ -9,9 +9,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import locale
 import time
+import os
 import re
 import traceback
-from typing import Any, Optional, List, Set
+import random
+import pytz
+from typing import Any, Optional, List, Set, Dict
 
 import pywikibot
 from pywikibot.site import PageInUse
@@ -68,6 +71,7 @@ class Controller:
         self.site = pywikibot.Site("de", "wikipedia")
         self.site.login()
         self.greeters: List[Greeter]
+        self.timezone = pytz.timezone("Europe/Berlin")
         monkey_patch(self.site)
 
     def isUserGloballyLocked(self, user: pywikibot.User) -> bool:
@@ -170,6 +174,43 @@ class Controller:
                     usersToGreet.append(user)
         return usersToGreet
 
+    def getDateString(self) -> str:
+        localizedTime = datetime.now(self.timezone)
+        if os.name == "nt":
+            return localizedTime.strftime("%e").replace(" ", "") + localizedTime.strftime(". %B %Y")
+        else:
+            return localizedTime.strftime("%-d. %B %Y")
+
+    def logGreetings(self, greeter: pywikibot.User, users: List[pywikibot.User]) -> None:
+        logPage = pywikibot.Page(
+            self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch/{greeter.username}"
+        )
+        text = logPage.get(force=True) if logPage.exists() else ""
+        if text == "":
+            text = (
+                f"{{{{Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch/Kopfzeile|{greeter.username}}}}}"
+            )
+        currentDateSection = f"=== {self.getDateString()} ==="
+        if not currentDateSection in text:
+            text += f"\n\n{currentDateSection}"
+        for user in users:
+            text += f"\n* [[Benutzer Diskussion:{user.username}|{user.username}]]"
+        logPage.put(text, summary="Bot: Logeinträge für neue Begrüßungen hinzugefügt.", watch=False)
+
+    def greet(self, greeter: Greeter, user: pywikibot.User) -> None:
+        pywikibot.output(f"Greeting {user.username} as {greeter.user.username}")
+
+    def greetAll(self, users: List[pywikibot.User]) -> None:
+        greetings: Dict[pywikibot.User, List[pywikibot.User]] = {}
+        for user in users:
+            greeter = random.choice(self.greeters)
+            self.greet(greeter, user)
+            if not greeter.user in greetings:
+                greetings[greeter.user] = []
+            greetings[greeter.user].append(user)
+        for (k, v) in greetings.items():
+            self.logGreetings(k, v)
+
     def run(self) -> None:
         lastSuccessfulRunStartTime = None
         while True:
@@ -180,8 +221,8 @@ class Controller:
                     lastSuccessfulRunStartTime if lastSuccessfulRunStartTime else datetime.now() - timedelta(hours=24)
                 )
                 usersToGreet = self.getUsersToGreet(since)
-
                 pywikibot.output(f"Greeting {len(usersToGreet)} users with {len(self.greeters)} greeters...")
+                self.greetAll(usersToGreet)
                 lastSuccessfulRunStartTime = startTime
                 time.sleep(30 * 60)
             except Exception:
