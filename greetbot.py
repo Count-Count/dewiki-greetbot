@@ -69,9 +69,20 @@ class Controller:
         self.greeters: List[Greeter]
         monkey_patch(self.site)
 
+    def isUserGloballyLocked(self, user: pywikibot.User) -> bool:
+        globallyLockedRequest = pywikibot.data.api.Request(
+            site=self.site,
+            parameters={"action": "query", "format": "json", "meta": "globaluserinfo", "guiuser": user.username,},
+        )
+        response = globallyLockedRequest.submit()
+        return "locked" in response["query"]["globaluserinfo"]
+
     def isEligibleAsGreeter(self, greeter: pywikibot.User) -> bool:
         if greeter.isBlocked():
-            pywikibot.warning(f"'{greeter.username}' is blocked and is thus not eligible as greeter.")
+            pywikibot.warning(f"'{greeter.username}' is blocked and thus not eligible as greeter.")
+            return False
+        if self.isUserGloballyLocked(greeter):
+            pywikibot.warning(f"'{greeter.username}' is globally locked and thus not eligible as greeter.")
             return False
         userProps = greeter.getprops()
         if not "review" in userProps["rights"]:
@@ -144,8 +155,12 @@ class Controller:
                 except pywikibot.exceptions.HiddenKeyError:
                     # User name hidden/oversighted
                     continue
+
                 if user.isBlocked():
                     # User is blocked and will not be greeted.
+                    pass
+                elif self.isUserGloballyLocked(user):
+                    # User is globally locked and will not be greeted.
                     pass
                 elif user.getUserTalkPage().exists():
                     # User talk page exists, will thus not be greeted.
@@ -164,6 +179,7 @@ class Controller:
                     lastSuccessfulRunStartTime if lastSuccessfulRunStartTime else datetime.now() - timedelta(hours=24)
                 )
                 usersToGreet = self.getUsersToGreet(since)
+
                 pywikibot.output(f"Greeting {len(usersToGreet)} users with {len(self.greeters)} greeters...")
                 lastSuccessfulRunStartTime = startTime
                 time.sleep(30 * 60)
