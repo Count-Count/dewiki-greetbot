@@ -66,6 +66,7 @@ class Greeter:
 class Controller:
     def __init__(self) -> None:
         self.site = pywikibot.Site("de", "wikipedia")
+        self.site.login()
         self.greeters: List[Greeter]
         monkey_patch(self.site)
 
