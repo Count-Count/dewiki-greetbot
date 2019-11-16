@@ -198,19 +198,40 @@ class Controller:
             text += f"\n\n{currentDateSection}"
         for user in users:
             text += f"\n* [[Benutzer Diskussion:{user.username}|{user.username}]]"
-        logPage.put(text, summary="Bot: Logeinträge für neue Begrüßungen hinzugefügt.", watch=False)
+        logPage.text = text
+        logPage.save(summary="Bot: Logeinträge für neue Begrüßungen hinzugefügt.", watch=False)
 
     def greet(self, greeter: Greeter, user: pywikibot.User) -> None:
-        pywikibot.output(f"Greeting {user.username} as {greeter.user.username}")
+        pywikibot.output(f"Greeting '{user.username}' as '{greeter.user.username}'")
+        if user.getUserTalkPage().exists():
+            pywikibot.warning(f"User talk page of {user.username} was created suddenly")
+        greeterTalkPagePrefix = (
+            "Benutzerin Diskussion:" if greeter.user.gender() == "female" else "Benutzer Diskussion:"
+        )
+        greeterTalkPage = greeterTalkPagePrefix + greeter.user.username
+        userTalkPage = user.getUserTalkPage()
+        userTalkPage.text = (
+            f"{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Willkommen|"
+            f"{greeter.signatureWithoutTimestamp}|{greeter.user.username}|{greeterTalkPage}}}}}"
+        )
+        user.getUserTalkPage().save(summary="Bot: Herzlich Willkommen bei Wikipedia!", watch=False)
 
     def greetAll(self, users: List[pywikibot.User]) -> None:
         greetings: Dict[pywikibot.User, List[pywikibot.User]] = {}
         for user in users:
             greeter = random.choice(self.greeters)
-            self.greet(greeter, user)
+            try:
+                self.greet(greeter, user)
+            except Exception:
+                pywikibot.error(
+                    f"Error greeting '{user.username}' as '{greeter.user.username}': {traceback.format_exc()}"
+                )
+                continue
+
             if not greeter.user in greetings:
                 greetings[greeter.user] = []
             greetings[greeter.user].append(user)
+
         for (k, v) in greetings.items():
             self.logGreetings(k, v)
 
