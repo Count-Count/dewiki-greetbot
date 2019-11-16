@@ -90,12 +90,10 @@ class Controller:
         if self.isUserGloballyLocked(greeter):
             pywikibot.warning(f"'{greeter.username}' is globally locked and thus not eligible as greeter.")
             return False
-        userProps = greeter.getprops()
-        if not "review" in userProps["rights"]:
+        if not "review" in greeter.getprops()["rights"]:
             pywikibot.warning(f"'{greeter.username}' does not have review rights and is thus not eligible as greeter.")
             return False
-        talkPageProtection = greeter.getUserTalkPage().protection()
-        if talkPageProtection:
+        if greeter.getUserTalkPage().protection():
             pywikibot.warning(f"Talk page of '{greeter.username}' is protected, thus not eligible as greeter.")
             return False
         cutoffTime = datetime.now() - timedelta(hours=24)
