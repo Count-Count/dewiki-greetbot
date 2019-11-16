@@ -6,9 +6,11 @@
 # Distributed under the terms of the MIT license.
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 import locale
 import time
 import re
+import traceback
 from typing import Any, Optional, List, Set
 
 import pywikibot
@@ -66,7 +68,25 @@ class Controller:
         self.site = pywikibot.Site("de", "wikipedia")
         self.greeters: List[Greeter]
         monkey_patch(self.site)
-        self.reloadGreeters()
+
+    def isEligibleAsGreeter(self, greeter: pywikibot.User) -> bool:
+        if greeter.isBlocked():
+            pywikibot.warning(f"'{greeter.username}' is blocked and is thus not eligible as greeter.")
+            return False
+        userProps = greeter.getprops()
+        if not "review" in userProps["rights"]:
+            pywikibot.warning(f"'{greeter.username}' does not have review rights and is thus not eligible as greeter.")
+            return False
+        talkPageProtection = greeter.getUserTalkPage().protection()
+        if talkPageProtection:
+            pywikibot.warning(f"Talk page of '{greeter.username}' is protected, thus not eligible as greeter.")
+            return False
+        cutoffTime = datetime.now() - timedelta(hours=24)
+        lastActivityTimestamp = greeter.last_event.timestamp()
+        if lastActivityTimestamp < cutoffTime:
+            # not active in the last 24 hours and is thus not eligible as greeter
+            return False
+        return True
 
     def reloadGreeters(self) -> None:
         self.greeters = []
@@ -91,16 +111,13 @@ class Controller:
                             )
                         elif user.username in greetersSet:
                             pywikibot.warning(f"Duplicate greeter '{user.username}''")
-                        else:
+                        elif self.isEligibleAsGreeter(user):
                             greetersSet.add(user.username)
                             self.greeters.append(Greeter(user, signatureWithoutTimestamp))
                     else:
                         pywikibot.warning(f"Could not parse greeter line: '{line}''")
             elif re.match(r"==\s*Begrüßungsteam\s*==\s*", line):
                 inSection = True
-
-    def run(self) -> None:
-        pass
 
     def getUserFromSignature(self, text: str) -> Optional[pywikibot.User]:
         for wikilink in pywikibot.link_regex.finditer(text):
@@ -116,6 +133,42 @@ class Controller:
             if link.namespace == -1 and link.title.startswith("Beiträge/"):
                 return pywikibot.User(self.site, link.title[len("Beiträge/") :])
         return None
+
+    def getUsersToGreet(self, since: datetime) -> List[pywikibot.User]:
+        logevents = self.site.logevents(logtype="newusers", start=since, reverse=True)
+        usersToGreet = []
+        for logevent in logevents:
+            if logevent.action() == "create":  # only locally registered new users, no SUL
+                try:
+                    user = pywikibot.User(self.site, logevent.user())
+                except pywikibot.exceptions.HiddenKeyError:
+                    # User name hidden/oversighted
+                    continue
+                if user.isBlocked():
+                    # User is blocked and will not be greeted.
+                    pass
+                elif user.getUserTalkPage().exists():
+                    # User talk page exists, will thus not be greeted.
+                    pass
+                else:
+                    usersToGreet.append(user)
+        return usersToGreet
+
+    def run(self) -> None:
+        lastSuccessfulRunStartTime = None
+        while True:
+            try:
+                self.reloadGreeters()
+                startTime = datetime.now()
+                since = (
+                    lastSuccessfulRunStartTime if lastSuccessfulRunStartTime else datetime.now() - timedelta(hours=24)
+                )
+                usersToGreet = self.getUsersToGreet(since)
+                pywikibot.output(f"Greeting {len(usersToGreet)} users with {len(self.greeters)} greeters...")
+                lastSuccessfulRunStartTime = startTime
+                time.sleep(30 * 60)
+            except Exception:
+                pywikibot.error(f"Error during greeting run: {traceback.format_exc()}")
 
 
 def main() -> None:
