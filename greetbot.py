@@ -13,7 +13,7 @@ import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, cast
 
 import pytz
 
@@ -69,7 +69,7 @@ class Greeter:
 
 class Controller:
     def __init__(self) -> None:
-        self.site = pywikibot.Site("de", "wikipedia")
+        self.site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
         self.site.login()
         self.greeters: List[Greeter]
         self.timezone = pytz.timezone("Europe/Berlin")
