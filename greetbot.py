@@ -151,7 +151,9 @@ class Controller:
         return None
 
     def getUsersToGreet(self, since: datetime) -> List[pywikibot.User]:
-        logevents = self.site.logevents(logtype="newusers", start=since, reverse=True)
+        logevents = self.site.logevents(
+            logtype="newusers", start=since, end=datetime.now() - timedelta(hours=6), reverse=True
+        )
         usersToGreet = []
         for logevent in logevents:
             if logevent.action() == "create":  # only locally registered new users, no SUL
