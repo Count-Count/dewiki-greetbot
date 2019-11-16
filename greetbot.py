@@ -5,9 +5,11 @@
 #
 # Distributed under the terms of the MIT license.
 
+from dataclasses import dataclass
 import locale
 import time
-from typing import Any
+import re
+from typing import Any, Optional, List, Set
 
 import pywikibot
 from pywikibot.site import PageInUse
@@ -53,17 +55,67 @@ def monkey_patch(site: Any) -> None:
     site.__class__.lock_page = lock_page
 
 
+@dataclass
+class Greeter:
+    user: pywikibot.User
+    signatureWithoutTimestamp: str
+
+
 class Controller:
     def __init__(self) -> None:
         self.site = pywikibot.Site("de", "wikipedia")
+        self.greeters: List[Greeter]
         monkey_patch(self.site)
         self.reloadGreeters()
 
     def reloadGreeters(self) -> None:
-        pass
+        self.greeters = []
+        projectPage = pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen")
+        inSection = False
+        greetersSet: Set[str] = set()
+        for line in projectPage.get(force=True).split("\n"):
+            if inSection:
+                if line.startswith("="):
+                    break
+                elif line.startswith("#"):
+                    match = re.match(
+                        r"#\s*(.+) [0-9]{2}:[0-9]{2}, [123]?[0-9]\. (?:Jan\.|Feb\.|Mär\.|Apr\.|Mai|Jun\.|Jul\.|Aug\.|Sep\.|Okt\.|Nov\.|Dez\.) 2[0-9]{3} \((CES?T|MES?Z)\)",
+                        line,
+                    )
+                    if match:
+                        signatureWithoutTimestamp = match.group(1)
+                        user = self.getUserFromSignature(signatureWithoutTimestamp)
+                        if not user:
+                            pywikibot.warning(
+                                f"Could not extract greeter name from signature '{signatureWithoutTimestamp}'"
+                            )
+                        elif user.username in greetersSet:
+                            pywikibot.warning(f"Duplicate greeter '{user.username}''")
+                        else:
+                            greetersSet.add(user.username)
+                            self.greeters.append(Greeter(user, signatureWithoutTimestamp))
+                    else:
+                        pywikibot.warning(f"Could not parse greeter line: '{line}''")
+            elif re.match(r"==\s*Begrüßungsteam\s*==\s*", line):
+                inSection = True
 
     def run(self) -> None:
         pass
+
+    def getUserFromSignature(self, text: str) -> Optional[pywikibot.User]:
+        for wikilink in pywikibot.link_regex.finditer(text):
+            if not wikilink.group("title").strip():
+                continue
+            try:
+                link = pywikibot.Link(wikilink.group("title"), source=self.site)
+                link.parse()
+            except pywikibot.Error:
+                continue
+            if link.namespace in [2, 3] and link.title.find("/") == -1:
+                return pywikibot.User(self.site, link.title)
+            if link.namespace == -1 and link.title.startswith("Beiträge/"):
+                return pywikibot.User(self.site, link.title[len("Beiträge/") :])
+        return None
 
 
 def main() -> None:
