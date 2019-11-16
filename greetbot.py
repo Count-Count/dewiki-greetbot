@@ -205,18 +205,18 @@ class Controller:
 
     def greet(self, greeter: Greeter, user: pywikibot.User) -> None:
         pywikibot.output(f"Greeting '{user.username}' as '{greeter.user.username}'")
-        if user.getUserTalkPage().exists():
+        userTalkPage = user.getUserTalkPage()
+        if userTalkPage.exists():
             pywikibot.warning(f"User talk page of {user.username} was created suddenly")
         greeterTalkPagePrefix = (
             "Benutzerin Diskussion:" if greeter.user.gender() == "female" else "Benutzer Diskussion:"
         )
         greeterTalkPage = greeterTalkPagePrefix + greeter.user.username
-        userTalkPage = user.getUserTalkPage()
         userTalkPage.text = (
             f"{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Willkommen|"
             f"{greeter.signatureWithoutTimestamp}|{greeter.user.username}|{greeterTalkPage}}}}}"
         )
-        user.getUserTalkPage().save(summary="Bot: Herzlich Willkommen bei Wikipedia!", watch=False)
+        userTalkPage.save(summary="Bot: Herzlich Willkommen bei Wikipedia!", watch=False)
 
     def greetAll(self, users: List[pywikibot.User]) -> None:
         greetings: Dict[pywikibot.User, List[pywikibot.User]] = {}
