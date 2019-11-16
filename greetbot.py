@@ -5,6 +5,8 @@
 #
 # Distributed under the terms of the MIT license.
 
+import base64
+import hashlib
 import locale
 import os
 import random
@@ -61,6 +63,10 @@ def monkey_patch(site: Any) -> None:
     site.__class__.lock_page = lock_page
 
 
+class TalkPageExistsException(Exception):
+    pass
+
+
 @dataclass
 class Greeter:
     user: pywikibot.User
@@ -69,10 +75,13 @@ class Greeter:
 
 class Controller:
     def __init__(self) -> None:
-        self.site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
-        self.site.login()
         self.greeters: List[Greeter]
         self.timezone = pytz.timezone("Europe/Berlin")
+        self.secret = os.environ.get("GREETBOT_HASH_SECRET")
+        if not self.secret:
+            raise Exception("Environment variable GREETBOT_HASH_SECRET not set")
+        self.site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
+        self.site.login()
         monkey_patch(self.site)
 
     def isUserGloballyLocked(self, user: pywikibot.User) -> bool:
@@ -208,6 +217,7 @@ class Controller:
         userTalkPage = user.getUserTalkPage()
         if userTalkPage.exists():
             pywikibot.warning(f"User talk page of {user.username} was created suddenly")
+            raise TalkPageExistsException()
         greeterTalkPagePrefix = (
             "Benutzerin Diskussion:" if greeter.user.gender() == "female" else "Benutzer Diskussion:"
         )
@@ -218,24 +228,48 @@ class Controller:
         )
         userTalkPage.save(summary="Bot: Herzlich Willkommen bei Wikipedia!", watch=False)
 
-    def greetAll(self, users: List[pywikibot.User]) -> None:
+    def greetAll(self, users: List[pywikibot.User]) -> List[pywikibot.User]:
         greetings: Dict[pywikibot.User, List[pywikibot.User]] = {}
+        greetedUsers: List[pywikibot.User] = []
         for user in users:
             greeter = random.choice(self.greeters)
             try:
                 self.greet(greeter, user)
+            except TalkPageExistsException:
+                continue
             except Exception:
                 pywikibot.error(
                     f"Error greeting '{user.username}' as '{greeter.user.username}': {traceback.format_exc()}"
                 )
                 continue
-
+            greetedUsers.append(user)
             if not greeter.user in greetings:
                 greetings[greeter.user] = []
             greetings[greeter.user].append(user)
 
         for (k, v) in greetings.items():
             self.logGreetings(k, v)
+
+        return greetedUsers
+
+    def isInControlGroup(self, user: pywikibot.User) -> bool:
+        digest = hashlib.sha224((self.secret + user.username).encode("utf-8")).digest()
+        return digest[0] % 2 == 0
+
+    def logGroup(self, page: pywikibot.Page, users: List[pywikibot.User]) -> None:
+        text = page.get(force=True) if page.exists() else ""
+        for user in users:
+            text += f"\n* [[Benutzer:{user.username}|{user.username}]]"
+        page.text = text
+        page.save(summary=f"Bot: Benutzerlist nach Botlauf aktualisiert.")
+
+    def logGroups(self, greetedUsers: List[pywikibot.User], controlGroup: List[pywikibot.User]) -> None:
+        self.logGroup(
+            pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßte Benutzer"), greetedUsers
+        )
+        self.logGroup(
+            pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Kontrollgruppe"), controlGroup
+        )
 
     def run(self) -> None:
         lastSuccessfulRunStartTime = None
@@ -247,9 +281,16 @@ class Controller:
                 since = (
                     lastSuccessfulRunStartTime if lastSuccessfulRunStartTime else datetime.now() - timedelta(hours=24)
                 )
-                usersToGreet = self.getUsersToGreet(since)
-                pywikibot.output(f"Greeting {len(usersToGreet)} users with {len(self.greeters)} greeters...")
-                self.greetAll(usersToGreet)
+                allUsers = self.getUsersToGreet(since)
+                usersToGreet: List[pywikibot.User] = []
+                controlGroup: List[pywikibot.User] = []
+                for user in allUsers:
+                    (controlGroup if self.isInControlGroup(user) else usersToGreet).append(user)
+                pywikibot.output(
+                    f"Greeting {len(usersToGreet)} users with {len(self.greeters)} greeters (control group: {len(controlGroup)} users)..."
+                )
+                greetedUsers = self.greetAll(usersToGreet)
+                self.logGroups(greetedUsers, controlGroup)
                 lastSuccessfulRunStartTime = startTime
                 pywikibot.output("Finished greet run.")
             except Exception:
