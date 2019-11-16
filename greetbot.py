@@ -183,9 +183,8 @@ class Controller:
             return localizedTime.strftime("%-d. %B %Y")
 
     def logGreetings(self, greeter: pywikibot.User, users: List[pywikibot.User]) -> None:
-        logPage = pywikibot.Page(
-            self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch/{greeter.username}"
-        )
+        logPageTitle = f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch/{greeter.username}"
+        logPage = pywikibot.Page(self.site, logPageTitle)
         text = logPage.get(force=True) if logPage.exists() else ""
         if text == "":
             text = (
@@ -198,6 +197,11 @@ class Controller:
             text += f"\n* [[Benutzer Diskussion:{user.username}|{user.username}]]"
         logPage.text = text
         logPage.save(summary="Bot: Logeinträge für neue Begrüßungen hinzugefügt.", watch=False)
+
+        mainLogPage = pywikibot.Page(self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch")
+        if not f"{{{logPageTitle}}}" in mainLogPage.get(force=True):
+            mainLogPage.text = mainLogPage.text + f"\n\n{{{{{logPageTitle}}}}}"
+            mainLogPage.save(summary=f"Bot: Unterseite [[{logPageTitle}]] eingebunden.")
 
     def greet(self, greeter: Greeter, user: pywikibot.User) -> None:
         pywikibot.output(f"Greeting '{user.username}' as '{greeter.user.username}'")
