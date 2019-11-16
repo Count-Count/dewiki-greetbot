@@ -229,9 +229,10 @@ class Controller:
                 self.greetAll(usersToGreet)
                 lastSuccessfulRunStartTime = startTime
                 pywikibot.output("Finished greet run.")
-                time.sleep(30 * 60)
             except Exception:
                 pywikibot.error(f"Error during greeting run: {traceback.format_exc()}")
+
+            time.sleep(30 * 60)
 
 
 def main() -> None:
