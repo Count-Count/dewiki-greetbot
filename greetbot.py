@@ -5,16 +5,17 @@
 #
 # Distributed under the terms of the MIT license.
 
+import locale
+import os
+import random
+import re
+import time
+import traceback
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import locale
-import time
-import os
-import re
-import traceback
-import random
+from typing import Any, Dict, List, Optional, Set
+
 import pytz
-from typing import Any, Optional, List, Set, Dict
 
 import pywikibot
 from pywikibot.site import PageInUse
@@ -217,6 +218,7 @@ class Controller:
         lastSuccessfulRunStartTime = None
         while True:
             try:
+                pywikibot.output("Starting greet run...")
                 self.reloadGreeters()
                 startTime = datetime.now()
                 since = (
@@ -226,6 +228,7 @@ class Controller:
                 pywikibot.output(f"Greeting {len(usersToGreet)} users with {len(self.greeters)} greeters...")
                 self.greetAll(usersToGreet)
                 lastSuccessfulRunStartTime = startTime
+                pywikibot.output("Finished greet run.")
                 time.sleep(30 * 60)
             except Exception:
                 pywikibot.error(f"Error during greeting run: {traceback.format_exc()}")
