@@ -5,7 +5,6 @@
 #
 # Distributed under the terms of the MIT license.
 
-import base64
 import hashlib
 import locale
 import os
@@ -77,9 +76,11 @@ class Controller:
     def __init__(self) -> None:
         self.greeters: List[Greeter]
         self.timezone = pytz.timezone("Europe/Berlin")
-        self.secret = os.environ.get("GREETBOT_HASH_SECRET")
-        if not self.secret:
+        self.lastSuccessfulRunStartTime: Optional[datetime] = None
+        secret = os.environ.get("GREETBOT_HASH_SECRET")
+        if not secret:
             raise Exception("Environment variable GREETBOT_HASH_SECRET not set")
+        self.secret = secret
         self.site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
         self.site.login()
         monkey_patch(self.site)
@@ -271,32 +272,34 @@ class Controller:
             pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Kontrollgruppe"), controlGroup
         )
 
-    def run(self) -> None:
-        lastSuccessfulRunStartTime = None
-        while True:
-            try:
-                pywikibot.output("Starting greet run...")
-                self.reloadGreeters()
-                startTime = datetime.now()
-                since = (
-                    lastSuccessfulRunStartTime if lastSuccessfulRunStartTime else datetime.now() - timedelta(hours=24)
-                )
-                allUsers = self.getUsersToGreet(since)
-                usersToGreet: List[pywikibot.User] = []
-                controlGroup: List[pywikibot.User] = []
-                for user in allUsers:
-                    (controlGroup if self.isInControlGroup(user) else usersToGreet).append(user)
-                pywikibot.output(
-                    f"Greeting {len(usersToGreet)} users with {len(self.greeters)} greeters (control group: {len(controlGroup)} users)..."
-                )
-                greetedUsers = self.greetAll(usersToGreet)
-                self.logGroups(greetedUsers, controlGroup)
-                lastSuccessfulRunStartTime = startTime
-                pywikibot.output("Finished greet run.")
-            except Exception:
-                pywikibot.error(f"Error during greeting run: {traceback.format_exc()}")
+    def doGreetRun(self) -> None:
+        pywikibot.output("Starting greet run...")
+        self.reloadGreeters()
+        startTime = datetime.now()
+        since = (
+            self.lastSuccessfulRunStartTime if self.lastSuccessfulRunStartTime else datetime.now() - timedelta(hours=24)
+        )
+        allUsers = self.getUsersToGreet(since)
+        usersToGreet: List[pywikibot.User] = []
+        controlGroup: List[pywikibot.User] = []
+        for user in allUsers:
+            (controlGroup if self.isInControlGroup(user) else usersToGreet).append(user)
+        pywikibot.output(
+            f"Greeting {len(usersToGreet)} users with {len(self.greeters)} greeters (control group: {len(controlGroup)} users)..."
+        )
+        greetedUsers = self.greetAll(usersToGreet)
+        self.logGroups(greetedUsers, controlGroup)
+        self.lastSuccessfulRunStartTime = startTime
+        pywikibot.output("Finished greet run.")
 
-            time.sleep(30 * 60)
+    def run(self) -> None:
+        while True:
+            if 10 <= datetime.now(self.timezone).hour < 22:
+                try:
+                    self.doGreetRun()
+                except Exception:
+                    pywikibot.error(f"Error during greeting run: {traceback.format_exc()}")
+                    time.sleep(30 * 60)
 
 
 def main() -> None:
