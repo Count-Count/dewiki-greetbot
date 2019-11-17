@@ -148,8 +148,8 @@ class GreetController:
         return "locked" in response["query"]["globaluserinfo"]
 
     def isEligibleAsGreeter(self, greeter: pywikibot.User) -> bool:
-        # if greeter.username != "Count Count":
-        #     return False
+        if greeter.username != "Count Count":  # ALPHA TEST: limit to Count Count
+            return False
         if greeter.isBlocked():
             pywikibot.warning(f"'{greeter.username}' is blocked and thus not eligible as greeter.")
             return False
@@ -322,6 +322,7 @@ class GreetController:
             self.lastSuccessfulRunStartTime if self.lastSuccessfulRunStartTime else datetime.now() - timedelta(hours=24)
         )
         allUsers = self.getUsersToGreet(since)
+        allUsers = allUsers[:10]  # ALPHA TEST: limit to 10 greeted users per run
         usersToGreet: List[pywikibot.User] = []
         controlGroup: List[pywikibot.User] = []
         for user in allUsers:
