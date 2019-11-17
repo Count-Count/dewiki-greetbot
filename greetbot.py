@@ -10,15 +10,19 @@ import locale
 import os
 import random
 import re
+import threading
 import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set, cast
+from typing import Any, Dict, Iterator, List, Optional, Set, cast
 
 import pytz
+from redis import Redis
 
 import pywikibot
+from pywikibot.bot import SingleSiteBot
+from pywikibot.comms.eventstreams import site_rc_listener
 from pywikibot.site import PageInUse
 
 
@@ -62,6 +66,59 @@ def monkey_patch(site: Any) -> None:
     site.__class__.lock_page = lock_page
 
 
+def FaultTolerantLiveRCPageGenerator(site: pywikibot.site.BaseSite) -> Iterator[pywikibot.Page]:
+    for entry in site_rc_listener(site):
+        # The title in a log entry may have been suppressed
+        if "title" not in entry and entry["type"] == "log":
+            continue
+        try:
+            page = pywikibot.Page(site, entry["title"], entry["namespace"])
+        except Exception:
+            pywikibot.warning("Exception instantiating page %s: %s" % (entry["title"], traceback.format_exc()))
+            continue
+        page._rcinfo = entry
+        yield page
+
+
+def getUserFromSignature(site: pywikibot.site.BaseSite, text: str) -> Optional[pywikibot.User]:
+    for wikilink in pywikibot.link_regex.finditer(text):
+        if not wikilink.group("title").strip():
+            continue
+        try:
+            link = pywikibot.Link(wikilink.group("title"), source=site)
+            link.parse()
+        except pywikibot.Error:
+            continue
+        if link.namespace in [2, 3] and link.title.find("/") == -1:
+            return pywikibot.User(site, link.title)
+        if link.namespace == -1 and link.title.startswith("Beiträge/"):
+            return pywikibot.User(site, link.title[len("Beiträge/") :])
+    return None
+
+
+class RedisDb:
+    def __init__(self, secret: str) -> None:
+        self.secret = secret
+        self.redis = Redis(host="tools-redis" if os.name != "nt" else "localhost", decode_responses=True)
+
+    def getKey(self, greetedUser: str) -> str:
+        return f"{self.secret}:greetedUser:{greetedUser}"
+
+    def addGreetedUser(self, greeter: str, user: str) -> None:
+        key = self.getKey(user)
+        p = self.redis.pipeline()  # type: ignore
+        p.set(key, greeter)
+        p.expire(key, timedelta(days=30))
+        p.execute()
+
+    def getAndRemoveGreeterFromRedis(self, user: str) -> Optional[str]:
+        key = self.getKey(user)
+        greeter = self.redis.get(key)
+        if greeter:
+            self.redis.delete(key)  # type: ignore
+        return cast(Optional[str], greeter)
+
+
 class TalkPageExistsException(Exception):
     pass
 
@@ -73,17 +130,14 @@ class Greeter:
 
 
 class GreetController:
-    def __init__(self) -> None:
+    def __init__(self, site: pywikibot.site.APISite, redisDb: RedisDb, secret: str) -> None:
         self.greeters: List[Greeter]
         self.timezone = pytz.timezone("Europe/Berlin")
         self.lastSuccessfulRunStartTime: Optional[datetime] = None
-        secret = os.environ.get("GREETBOT_HASH_SECRET")
-        if not secret:
-            raise Exception("Environment variable GREETBOT_HASH_SECRET not set")
+        self.site = site
+        self.redisDb = redisDb
         self.secret = secret
-        self.site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
         self.site.login()
-        monkey_patch(self.site)
 
     def isUserGloballyLocked(self, user: pywikibot.User) -> bool:
         globallyLockedRequest = pywikibot.data.api.Request(
@@ -94,8 +148,8 @@ class GreetController:
         return "locked" in response["query"]["globaluserinfo"]
 
     def isEligibleAsGreeter(self, greeter: pywikibot.User) -> bool:
-        if greeter.username != "Count Count":
-            return False
+        # if greeter.username != "Count Count":
+        #     return False
         if greeter.isBlocked():
             pywikibot.warning(f"'{greeter.username}' is blocked and thus not eligible as greeter.")
             return False
@@ -131,7 +185,7 @@ class GreetController:
                     )
                     if match:
                         signatureWithoutTimestamp = match.group(1)
-                        user = self.getUserFromSignature(signatureWithoutTimestamp)
+                        user = getUserFromSignature(self.site, signatureWithoutTimestamp)
                         if not user:
                             pywikibot.warning(
                                 f"Could not extract greeter name from signature '{signatureWithoutTimestamp}'"
@@ -145,21 +199,6 @@ class GreetController:
                         pywikibot.warning(f"Could not parse greeter line: '{line}''")
             elif re.match(r"==\s*Begrüßungsteam\s*==\s*", line):
                 inSection = True
-
-    def getUserFromSignature(self, text: str) -> Optional[pywikibot.User]:
-        for wikilink in pywikibot.link_regex.finditer(text):
-            if not wikilink.group("title").strip():
-                continue
-            try:
-                link = pywikibot.Link(wikilink.group("title"), source=self.site)
-                link.parse()
-            except pywikibot.Error:
-                continue
-            if link.namespace in [2, 3] and link.title.find("/") == -1:
-                return pywikibot.User(self.site, link.title)
-            if link.namespace == -1 and link.title.startswith("Beiträge/"):
-                return pywikibot.User(self.site, link.title[len("Beiträge/") :])
-        return None
 
     def getUsersToGreet(self, since: datetime) -> List[pywikibot.User]:
         logevents = self.site.logevents(
@@ -230,6 +269,7 @@ class GreetController:
             f"{greeter.signatureWithoutTimestamp}|{greeter.user.username}|{greeterTalkPage}}}}}"
         )
         userTalkPage.save(summary="Bot: Herzlich Willkommen bei Wikipedia!", watch=False)
+        self.redisDb.addGreetedUser(greeter.user.username, user.username)
 
     def greetAll(self, users: List[pywikibot.User]) -> List[pywikibot.User]:
         greetings: Dict[pywikibot.User, List[pywikibot.User]] = {}
@@ -301,13 +341,89 @@ class GreetController:
                     self.doGreetRun()
                 except Exception:
                     pywikibot.error(f"Error during greeting run: {traceback.format_exc()}")
-                    time.sleep(30 * 60)
+                time.sleep(30 * 60)
+
+
+class GreetedUserWatchBot(SingleSiteBot):
+    def __init__(self, site: pywikibot.site.APISite, redisDb: RedisDb) -> None:
+        super(GreetedUserWatchBot, self).__init__(site=site)
+        self.redisDb = redisDb
+        self.generator = FaultTolerantLiveRCPageGenerator(self.site)
+
+    def skip_page(self, page: pywikibot.Page) -> bool:
+        if page.namespace() != 3:
+            return True
+        elif not page.exists():
+            return True
+        elif page.isRedirectPage():
+            return True
+        return super().skip_page(page)
+
+    def greeterWantsToBeNotified(self, greeter: str) -> bool:
+        projectPage = pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen")
+        inSection = False
+        for line in projectPage.get(force=True).split("\n"):
+            if inSection:
+                if line.startswith("="):
+                    break
+                elif line.startswith("*"):
+                    user = getUserFromSignature(self.site, line)
+                    if not user:
+                        pywikibot.warning(f"Could not extract greeter name from notify line '{line}'")
+                    elif user.username == greeter:
+                        return True
+            elif re.match(r"===\s*Benachrichtigung über Antworten\s*===\s*", line):
+                inSection = True
+        return False
+
+    def notifyGreeter(self, greeter: str, username: str, newRevision: int) -> None:
+        greeterTalkPage = pywikibot.User(self.site, greeter).getUserTalkPage()
+        text = greeterTalkPage.get(force=True)
+        text += f"\n\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/BegrüßterHatEditiert|{username}|{newRevision}}}}}"
+        greeterTalkPage.text = text
+        greeterTalkPage.save(
+            summary="Bot: Ein von dir begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet."
+        )
+
+    def treat(self, page: pywikibot.Page) -> None:
+        change = page._rcinfo
+        if not change["type"] == "edit":
+            return
+        title = change["title"]
+        username = change["user"]
+        newRevision = change["revision"]["new"]
+        if username != title[title.index(":") + 1 :]:
+            return
+        # user edited his own talk page
+        greeter = self.redisDb.getAndRemoveGreeterFromRedis(username)
+        if greeter and self.greeterWantsToBeNotified(greeter):
+            self.notifyGreeter(greeter, username, newRevision)
+
+
+def runWatchBot(site: pywikibot.site.APISite, redisDb: RedisDb) -> None:
+    while True:
+        try:
+            GreetedUserWatchBot(site, redisDb).run()
+        except Exception:
+            pywikibot.error(f"Error watching greeted users: {traceback.format_exc()}")
+            time.sleep(60)
+
+
+def startWatchBot(site: pywikibot.site.APISite, redisDb: RedisDb) -> None:
+    threading.Thread(target=runWatchBot, args=[site, redisDb]).start()
 
 
 def main() -> None:
-    locale.setlocale(locale.LC_ALL, "de_DE.utf8")
     pywikibot.handle_args()
-    GreetController().run()
+    secret = os.environ.get("GREETBOT_SECRET")
+    if not secret:
+        raise Exception("Environment variable GREETBOT_SECRET not set")
+    locale.setlocale(locale.LC_ALL, "de_DE.utf8")
+    site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
+    monkey_patch(site)
+    redisDb = RedisDb(secret)
+    startWatchBot(site, redisDb)
+    GreetController(site, redisDb, secret).run()
 
 
 if __name__ == "__main__":
