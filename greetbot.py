@@ -337,7 +337,7 @@ class GreetController:
                     self.doGreetRun()
                 except Exception:
                     pywikibot.error(f"Error during greeting run: {traceback.format_exc()}")
-                time.sleep(30 * 60)
+            time.sleep(30 * 60)
 
 
 class GreetedUserWatchBot(SingleSiteBot):
