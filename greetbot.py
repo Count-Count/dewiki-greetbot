@@ -133,7 +133,6 @@ class GreetController:
     def __init__(self, site: pywikibot.site.APISite, redisDb: RedisDb, secret: str) -> None:
         self.greeters: List[Greeter]
         self.timezone = pytz.timezone("Europe/Berlin")
-        self.lastSuccessfulRunStartTime: Optional[datetime] = None
         self.site = site
         self.redisDb = redisDb
         self.secret = secret
@@ -317,10 +316,7 @@ class GreetController:
     def doGreetRun(self) -> None:
         pywikibot.output("Starting greet run...")
         self.reloadGreeters()
-        startTime = datetime.now()
-        since = (
-            self.lastSuccessfulRunStartTime if self.lastSuccessfulRunStartTime else datetime.now() - timedelta(hours=24)
-        )
+        since = datetime.now() - timedelta(hours=24)
         allUsers = self.getUsersToGreet(since)
         allUsers = allUsers[:10]  # ALPHA TEST: limit to 10 greeted users per run
         usersToGreet: List[pywikibot.User] = []
@@ -332,7 +328,6 @@ class GreetController:
         )
         greetedUsers = self.greetAll(usersToGreet)
         self.logGroups(greetedUsers, controlGroup)
-        self.lastSuccessfulRunStartTime = startTime
         pywikibot.output("Finished greet run.")
 
     def run(self) -> None:
