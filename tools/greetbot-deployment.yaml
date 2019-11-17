@@ -1,0 +1,36 @@
+# Run greetbot on kubernetes
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: greetbot
+  namespace: dewikigreetbot
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: greetbot
+    spec:
+      containers:
+        - name: greetbot
+          image: docker-registry.tools.wmflabs.org/toollabs-python35-base:latest
+          workingDir: /data/project/dewikigreetbot
+          command: [ "/data/project/dewikigreetbot/exec-bot.sh" ]
+          env:
+            - name: HOME
+              value: /data/project/dewikigreetbot
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: home
+              mountPath: /data/project/dewikigreetbot/
+            - name: home
+              mountPath: /mnt/nfs/labstore-secondary-tools-project/dewikigreetbot/
+            - name: pywikibot-core
+              mountPath: /data/project/shared/pywikibot/core
+      volumes:
+        - name: home
+          hostPath:
+            path: /data/project/dewikigreetbot/
+        - name: pywikibot-core
+          hostPath:
+            path: /data/project/shared/pywikibot/core
