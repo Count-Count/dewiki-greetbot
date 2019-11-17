@@ -72,7 +72,7 @@ class Greeter:
     signatureWithoutTimestamp: str
 
 
-class Controller:
+class GreetController:
     def __init__(self) -> None:
         self.greeters: List[Greeter]
         self.timezone = pytz.timezone("Europe/Berlin")
@@ -94,6 +94,8 @@ class Controller:
         return "locked" in response["query"]["globaluserinfo"]
 
     def isEligibleAsGreeter(self, greeter: pywikibot.User) -> bool:
+        if greeter.username != "Count Count":
+            return False
         if greeter.isBlocked():
             pywikibot.warning(f"'{greeter.username}' is blocked and thus not eligible as greeter.")
             return False
@@ -305,7 +307,7 @@ class Controller:
 def main() -> None:
     locale.setlocale(locale.LC_ALL, "de_DE.utf8")
     pywikibot.handle_args()
-    Controller().run()
+    GreetController().run()
 
 
 if __name__ == "__main__":
