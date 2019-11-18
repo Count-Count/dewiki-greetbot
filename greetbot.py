@@ -301,7 +301,9 @@ class GreetController:
     def logGroup(self, page: pywikibot.Page, users: List[pywikibot.User]) -> None:
         text = page.get(force=True) if page.exists() else ""
         for user in users:
-            text += f"\n* [[Benutzer:{user.username}|{user.username}]]"
+            newLine = f"\n* [[Benutzer:{user.username}|{user.username}]]"
+            if not newLine in text:
+                text += newLine
         page.text = text
         page.save(summary=f"Bot: Benutzerliste nach Botlauf aktualisiert.")
 
