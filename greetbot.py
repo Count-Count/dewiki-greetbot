@@ -303,7 +303,7 @@ class GreetController:
         for user in users:
             text += f"\n* [[Benutzer:{user.username}|{user.username}]]"
         page.text = text
-        page.save(summary=f"Bot: Benutzerlist nach Botlauf aktualisiert.")
+        page.save(summary=f"Bot: Benutzerliste nach Botlauf aktualisiert.")
 
     def logGroups(self, greetedUsers: List[pywikibot.User], controlGroup: List[pywikibot.User]) -> None:
         self.logGroup(
