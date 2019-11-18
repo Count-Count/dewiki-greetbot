@@ -130,12 +130,11 @@ class Greeter:
 
 
 class GreetController:
-    def __init__(self, site: pywikibot.site.APISite, redisDb: RedisDb, secret: str) -> None:
+    def __init__(self, site: pywikibot.site.APISite, redisDb: RedisDb) -> None:
         self.greeters: List[Greeter]
         self.timezone = pytz.timezone("Europe/Berlin")
         self.site = site
         self.redisDb = redisDb
-        self.secret = secret
         self.site.login()
 
     def isUserGloballyLocked(self, user: pywikibot.User) -> bool:
@@ -295,8 +294,7 @@ class GreetController:
         return greetedUsers
 
     def isInControlGroup(self, user: pywikibot.User) -> bool:
-        digest = hashlib.sha224((self.secret + user.username).encode("utf-8")).digest()
-        return digest[0] % 2 == 0
+        return random.randint(0, 1) == 0
 
     def logGroup(self, page: pywikibot.Page, users: List[pywikibot.User]) -> None:
         text = page.get(force=True) if page.exists() else ""
@@ -419,7 +417,7 @@ def main() -> None:
     monkey_patch(site)
     redisDb = RedisDb(secret)
     startWatchBot(site, redisDb)
-    GreetController(site, redisDb, secret).run()
+    GreetController(site, redisDb).run()
 
 
 if __name__ == "__main__":
