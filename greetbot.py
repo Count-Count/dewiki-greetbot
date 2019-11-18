@@ -320,7 +320,6 @@ class GreetController:
         self.reloadGreeters()
         since = datetime.now() - timedelta(hours=24)
         allUsers = self.getUsersToGreet(since)
-        allUsers = allUsers[:20]  # ALPHA TEST: limit to 20 greeted users per run
         usersToGreet: List[pywikibot.User] = []
         controlGroup: List[pywikibot.User] = []
         for user in allUsers:
