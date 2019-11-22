@@ -108,8 +108,12 @@ class RedisDb:
         key = self.getKey(user)
         p = self.redis.pipeline()  # type: ignore
         p.set(key, greeter)
+        p.sadd(f"{self.secret}:greetedUsers", user)
         p.expire(key, timedelta(days=30))
         p.execute()
+
+    def addControlGroupUser(self, user: str) -> None:
+        self.redis.sadd(f"{self.secret}:controlGroup", user)  # type: ignore
 
     def getAndRemoveGreetedUserFromRedis(self, user: str) -> Optional[str]:
         key = self.getKey(user)
@@ -117,6 +121,12 @@ class RedisDb:
         if greeter:
             self.redis.delete(key)  # type: ignore
         return cast(Optional[str], greeter)
+
+    def getAllGreetedUsers(self) -> List[str]:
+        return cast(List[str], self.redis.smembers(f"{self.secret}:greetedUsers"))  # type: ignore
+
+    def getAllControlGroupUsers(self) -> List[str]:
+        return cast(List[str], self.redis.smembers(f"{self.secret}:controlGroup"))  # type: ignore
 
 
 class TalkPageExistsException(Exception):
@@ -326,6 +336,8 @@ class GreetController:
             f"Greeting {len(usersToGreet)} users with {len(self.greeters)} greeters (control group: {len(controlGroup)} users)..."
         )
         greetedUsers = self.greetAll(usersToGreet)
+        for user in controlGroup:
+            self.redisDb.addControlGroupUser(user.username)
         self.logGroups(greetedUsers, controlGroup)
         pywikibot.output("Finished greet run.")
 
