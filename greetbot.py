@@ -111,7 +111,7 @@ class RedisDb:
         p.expire(key, timedelta(days=30))
         p.execute()
 
-    def getAndRemoveGreeterFromRedis(self, user: str) -> Optional[str]:
+    def getAndRemoveGreetedUserFromRedis(self, user: str) -> Optional[str]:
         key = self.getKey(user)
         greeter = self.redis.get(key)
         if greeter:
@@ -390,7 +390,7 @@ class GreetedUserWatchBot(SingleSiteBot):
         if username != title[title.index(":") + 1 :]:
             return
         # user edited his own talk page
-        greeter = self.redisDb.getAndRemoveGreeterFromRedis(username)
+        greeter = self.redisDb.getAndRemoveGreetedUserFromRedis(username)
         if greeter and self.greeterWantsToBeNotified(greeter):
             self.notifyGreeter(greeter, username, newRevision)
 
