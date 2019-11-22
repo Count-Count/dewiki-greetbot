@@ -366,7 +366,7 @@ class GreetedUserWatchBot(SingleSiteBot):
             return True
         return super().skip_page(page)
 
-    def greeterWantsToBeNotified(self, greeter: str) -> bool:
+    def greeterWantsToBeNotifiedOnTalkPage(self, greeter: str) -> bool:
         projectPage = pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen")
         inSection = False
         for line in projectPage.get(force=True).split("\n"):
@@ -403,7 +403,7 @@ class GreetedUserWatchBot(SingleSiteBot):
             return
         # user edited his own talk page
         greeter = self.redisDb.getAndRemoveGreetedUserFromRedis(username)
-        if greeter and self.greeterWantsToBeNotified(greeter):
+        if greeter and self.greeterWantsToBeNotifiedOnTalkPage(greeter):
             self.notifyGreeter(greeter, username, newRevision)
 
 
