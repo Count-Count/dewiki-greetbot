@@ -391,14 +391,36 @@ class GreetedUserWatchBot(SingleSiteBot):
                 inSection = True
         return False
 
-    def notifyGreeter(self, greeter: str, username: str, newRevision: int) -> None:
-        greeterTalkPage = pywikibot.User(self.site, greeter).getUserTalkPage()
-        text = greeterTalkPage.get(force=True)
-        text += f"\n\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/BegrüßterHatEditiert|{username}|{newRevision}}}}}"
-        greeterTalkPage.text = text
-        greeterTalkPage.save(
-            summary="Bot: Ein von dir begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet."
+    def saveNotificationInProject(self, greeter: str, username: str, newRevision: int) -> None:
+        logPageTitle = f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten/{greeter}"
+        logPage = pywikibot.Page(self.site, logPageTitle)
+        text = logPage.get(force=True) if logPage.exists() else ""
+        if text == "":
+            text = (
+                f"{{{{Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten/Kopfzeile|{greeter}}}}}"
+            )
+        text = ensureDateSectionExists(text)
+        text += f"\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/BegrüßterHatEditiert2|{username}|{newRevision}}}}}"
+        logPage.text = text
+        logPage.save(summary="Bot: Ein begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet.")
+        mainLogPage = pywikibot.Page(
+            self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten"
         )
+        if not f"{{{logPageTitle}}}" in mainLogPage.get(force=True):
+            mainLogPage.text = mainLogPage.text + f"\n{{{{{logPageTitle}}}}}"
+            mainLogPage.save(summary=f"Bot: Unterseite [[{logPageTitle}]] eingebunden.")
+
+    def notifyGreeter(self, greeter: str, username: str, newRevision: int) -> None:
+        self.saveNotificationInProject(greeter, username, newRevision)
+
+        if self.greeterWantsToBeNotifiedOnTalkPage(greeter):
+            greeterTalkPage = pywikibot.User(self.site, greeter).getUserTalkPage()
+            text = greeterTalkPage.get(force=True) if greeterTalkPage.exists() else ""
+            text += f"\n\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/BegrüßterHatEditiert|{username}|{newRevision}}}}}"
+            greeterTalkPage.text = text
+            greeterTalkPage.save(
+                summary="Bot: Ein von dir begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet."
+            )
 
     def treat(self, page: pywikibot.Page) -> None:
         change = page._rcinfo
@@ -411,7 +433,7 @@ class GreetedUserWatchBot(SingleSiteBot):
             return
         # user edited his own talk page
         greeter = self.redisDb.getAndRemoveGreetedUserFromRedis(username)
-        if greeter and self.greeterWantsToBeNotifiedOnTalkPage(greeter):
+        if greeter:
             self.notifyGreeter(greeter, username, newRevision)
 
 
