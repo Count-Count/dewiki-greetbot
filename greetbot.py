@@ -66,6 +66,24 @@ def monkey_patch(site: Any) -> None:
     site.__class__.lock_page = lock_page
 
 
+timezone = pytz.timezone("Europe/Berlin")
+
+
+def getDateString() -> str:
+    localizedTime = datetime.now(timezone)
+    if os.name == "nt":
+        return localizedTime.strftime("%e").replace(" ", "") + localizedTime.strftime(". %B %Y")
+    else:
+        return localizedTime.strftime("%-d. %B %Y")
+
+
+def ensureDateSectionExists(text: str) -> str:
+    currentDateSection = f"=== {getDateString()} ==="
+    if not currentDateSection in text:
+        text += f"\n\n{currentDateSection}"
+    return text
+
+
 def FaultTolerantLiveRCPageGenerator(site: pywikibot.site.BaseSite) -> Iterator[pywikibot.Page]:
     for entry in site_rc_listener(site):
         # The title in a log entry may have been suppressed
@@ -142,7 +160,6 @@ class Greeter:
 class GreetController:
     def __init__(self, site: pywikibot.site.APISite, redisDb: RedisDb, secret: str) -> None:
         self.greeters: List[Greeter]
-        self.timezone = pytz.timezone("Europe/Berlin")
         self.site = site
         self.redisDb = redisDb
         self.secret = secret
@@ -233,13 +250,6 @@ class GreetController:
                     usersToGreet.append(user)
         return usersToGreet
 
-    def getDateString(self) -> str:
-        localizedTime = datetime.now(self.timezone)
-        if os.name == "nt":
-            return localizedTime.strftime("%e").replace(" ", "") + localizedTime.strftime(". %B %Y")
-        else:
-            return localizedTime.strftime("%-d. %B %Y")
-
     def logGreetings(self, greeter: pywikibot.User, users: List[pywikibot.User]) -> None:
         logPageTitle = f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch/{greeter.username}"
         logPage = pywikibot.Page(self.site, logPageTitle)
@@ -248,9 +258,7 @@ class GreetController:
             text = (
                 f"{{{{Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch/Kopfzeile|{greeter.username}}}}}"
             )
-        currentDateSection = f"=== {self.getDateString()} ==="
-        if not currentDateSection in text:
-            text += f"\n\n{currentDateSection}"
+        text = ensureDateSectionExists(text)
         for user in users:
             text += f"\n* [[Benutzer Diskussion:{user.username}|{user.username}]]"
         logPage.text = text
