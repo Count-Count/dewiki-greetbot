@@ -266,7 +266,7 @@ class GreetController:
 
         mainLogPage = pywikibot.Page(self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch")
         if not f"{{{logPageTitle}}}" in mainLogPage.get(force=True):
-            mainLogPage.text = mainLogPage.text + f"\n\n{{{{{logPageTitle}}}}}"
+            mainLogPage.text = mainLogPage.text + f"\n{{{{{logPageTitle}}}}}"
             mainLogPage.save(summary=f"Bot: Unterseite [[{logPageTitle}]] eingebunden.")
 
     def greet(self, greeter: Greeter, user: pywikibot.User) -> None:
