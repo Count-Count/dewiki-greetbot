@@ -254,7 +254,7 @@ class GreetController:
                     < logevent.timestamp().replace(tzinfo=pytz.utc).astimezone(timezone)
                     < datetime(2020, 1, 26, 0, 0, tzinfo=timezone)
                 ):
-                    # only greet users registered in four week test period
+                    # only greet users registered in eight week test period
                     pass
                 else:
                     usersToGreet.append(user)
