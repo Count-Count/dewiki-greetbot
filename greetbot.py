@@ -224,9 +224,12 @@ class GreetController:
             elif re.match(r"==\s*Begrüßungsteam\s*==\s*", line):
                 inSection = True
 
-    def getUsersToGreet(self, since: datetime) -> List[pywikibot.User]:
+    def getUsersToGreet(self) -> List[pywikibot.User]:
         logevents = self.site.logevents(
-            logtype="newusers", start=since, end=datetime.now() - timedelta(hours=6), reverse=True
+            logtype="newusers",
+            start=datetime.utcnow() - timedelta(hours=24),
+            end=datetime.utcnow() - timedelta(hours=6),
+            reverse=True,
         )
         usersToGreet = []
         for logevent in logevents:
@@ -246,8 +249,16 @@ class GreetController:
                 elif user.getUserTalkPage().exists():
                     # User talk page exists, will thus not be greeted.
                     pass
+                elif (
+                    not datetime(2019, 12, 1, 0, 0, tzinfo=timezone)
+                    < logevent.timestamp().replace(tzinfo=pytz.utc).astimezone(timezone)
+                    < datetime(2020, 1, 26, 0, 0, tzinfo=timezone)
+                ):
+                    # only greet users registered in four week test period
+                    pass
                 else:
                     usersToGreet.append(user)
+
         return usersToGreet
 
     def logGreetings(self, greeter: pywikibot.User, users: List[pywikibot.User]) -> None:
@@ -334,8 +345,7 @@ class GreetController:
     def doGreetRun(self) -> None:
         pywikibot.output("Starting greet run...")
         self.reloadGreeters()
-        since = datetime.now() - timedelta(hours=24)
-        allUsers = self.getUsersToGreet(since)
+        allUsers = self.getUsersToGreet()
         usersToGreet: List[pywikibot.User] = []
         controlGroup: List[pywikibot.User] = []
         for user in allUsers:
