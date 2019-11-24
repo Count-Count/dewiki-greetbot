@@ -114,6 +114,32 @@ def getUserFromSignature(site: pywikibot.site.BaseSite, text: str) -> Optional[p
     return None
 
 
+def getContributionsLogPageTitle(greeter: str) -> str:
+    return f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten/{greeter}"
+
+
+def ensureHeaderForContributionLogExists(text: str, greeter: str) -> str:
+    if text == "":
+        text = f"{{{{Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:Kopfzeile Bearbeitungen von Begrüßten|{greeter}}}}}"
+    return text
+
+
+def getLogPageTitle(greeter: str) -> str:
+    return f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch/{greeter}"
+
+
+def ensureHeaderForLogExists(text: str, greeter: str) -> str:
+    if text == "":
+        text = f"{{{{Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:Kopfzeile Begrüßungslogbuch|{greeter}}}}}"
+    return text
+
+
+def ensureIncludedAsTemplate(mainLogPage: pywikibot.Page, subLogPageTitle: str) -> None:
+    if not f"{{{subLogPageTitle}}}" in mainLogPage.get(force=True):
+        mainLogPage.text = mainLogPage.text + f"\n{{{{{subLogPageTitle}}}}}"
+        mainLogPage.save(summary=f"Bot: Unterseite [[{subLogPageTitle}]] eingebunden.")
+
+
 class RedisDb:
     def __init__(self, secret: str) -> None:
         self.secret = secret
@@ -160,6 +186,7 @@ class Greeter:
 class GreetController:
     def __init__(self, site: pywikibot.site.APISite, redisDb: RedisDb, secret: str) -> None:
         self.greeters: List[Greeter]
+        self.allGreetersSet: Set[str]
         self.site = site
         self.redisDb = redisDb
         self.secret = secret
@@ -195,6 +222,7 @@ class GreetController:
 
     def reloadGreeters(self) -> None:
         self.greeters = []
+        self.allGreetersSet = set()
         projectPage = pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungsteam")
         inSection = False
         greetersSet: Set[str] = set()
@@ -214,11 +242,13 @@ class GreetController:
                             pywikibot.warning(
                                 f"Could not extract greeter name from signature '{signatureWithoutTimestamp}'"
                             )
-                        elif user.username in greetersSet:
-                            pywikibot.warning(f"Duplicate greeter '{user.username}''")
-                        elif self.isEligibleAsGreeter(user):
-                            greetersSet.add(user.username)
-                            self.greeters.append(Greeter(user, signatureWithoutTimestamp))
+                        else:
+                            if user.username in greetersSet:
+                                pywikibot.warning(f"Duplicate greeter '{user.username}''")
+                            elif self.isEligibleAsGreeter(user):
+                                greetersSet.add(user.username)
+                                self.greeters.append(Greeter(user, signatureWithoutTimestamp))
+                            self.allGreetersSet.add(user.username)
                     else:
                         pywikibot.warning(f"Could not parse greeter line: '{line}''")
             elif re.match(r"==\s*Begrüßungsteam\s*==\s*", line):
@@ -262,23 +292,17 @@ class GreetController:
         return usersToGreet
 
     def logGreetings(self, greeter: pywikibot.User, users: List[pywikibot.User]) -> None:
-        logPageTitle = f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch/{greeter.username}"
+        logPageTitle = getLogPageTitle(greeter.username)
         logPage = pywikibot.Page(self.site, logPageTitle)
         text = logPage.get(force=True) if logPage.exists() else ""
-        if text == "":
-            text = (
-                f"{{{{Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:Kopfzeile Begrüßungslogbuch|{greeter.username}}}}}"
-            )
+        text = ensureHeaderForLogExists(text, greeter.username)
         text = ensureDateSectionExists(text)
         for user in users:
             text += f"\n* [[Benutzer Diskussion:{user.username}|{user.username}]]"
         logPage.text = text
         logPage.save(summary="Bot: Logeinträge für neue Begrüßungen hinzugefügt.", watch=False)
-
         mainLogPage = pywikibot.Page(self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch")
-        if not f"{{{logPageTitle}}}" in mainLogPage.get(force=True):
-            mainLogPage.text = mainLogPage.text + f"\n{{{{{logPageTitle}}}}}"
-            mainLogPage.save(summary=f"Bot: Unterseite [[{logPageTitle}]] eingebunden.")
+        ensureTemplateIncluded(mainLogPage, logPageTitle)
 
     def greet(self, greeter: Greeter, user: pywikibot.User) -> None:
         pywikibot.output(f"Greeting '{user.username}' as '{greeter.user.username}'")
@@ -342,6 +366,31 @@ class GreetController:
             pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Kontrollgruppe"), controlGroup
         )
 
+    def createGreeterSpecificPages(self, greeter: str) -> None:
+        logPageTitle = getLogPageTitle(greeter)
+        logPage = pywikibot.Page(self.site, logPageTitle)
+        if not logPage.exists():
+            text = ensureHeaderForLogExists("", greeter)
+            logPage.text = text
+            logPage.save(summary="Bot: Seite für Begrüßer angelegt.", watch=False)
+            mainLogPage = pywikibot.Page(self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch")
+            ensureIncludedAsTemplate(mainLogPage, logPageTitle)
+        contributionsLogPageTitle = getContributionsLogPageTitle(greeter)
+        contributionsLogPage = pywikibot.Page(self.site, contributionsLogPageTitle)
+        if not contributionsLogPage.exists():
+            contributionsLogText = ensureHeaderForContributionLogExists("", greeter)
+            contributionsLogPage.text = contributionsLogText
+            contributionsLogPage.save(summary="Bot: Seite für Begrüßer angelegt.")
+            mainLogPage = pywikibot.Page(
+                self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten"
+            )
+            ensureIncludedAsTemplate(mainLogPage, contributionsLogPageTitle)
+
+    def createAllGreeterSpecificPages(self) -> None:
+        self.reloadGreeters()
+        for greeter in self.allGreetersSet:
+            self.createGreeterSpecificPages(greeter)
+
     def doGreetRun(self) -> None:
         pywikibot.output("Starting greet run...")
         self.reloadGreeters()
@@ -402,23 +451,18 @@ class GreetedUserWatchBot(SingleSiteBot):
         return False
 
     def saveNotificationInProject(self, greeter: str, username: str, newRevision: int) -> None:
-        logPageTitle = f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten/{greeter}"
-        logPage = pywikibot.Page(self.site, logPageTitle)
-        text = logPage.get(force=True) if logPage.exists() else ""
-        if text == "":
-            text = (
-                f"{{{{Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:Kopfzeile Bearbeitungen von Begrüßten|{greeter}}}}}"
-            )
-        text = ensureDateSectionExists(text)
-        text += f"\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatEditiert2|{username}|{newRevision}}}}}"
-        logPage.text = text
-        logPage.save(summary="Bot: Ein begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet.")
+        contributionsLogPageTitle = getContributionsLogPageTitle(greeter)
+        contributionsLogPage = pywikibot.Page(self.site, contributionsLogPageTitle)
+        contributionsLogText = contributionsLogPage.get(force=True) if contributionsLogPage.exists() else ""
+        contributionsLogText = ensureHeaderForContributionLogExists(contributionsLogText, greeter)
+        contributionsLogText = ensureDateSectionExists(contributionsLogText)
+        contributionsLogText += f"\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatEditiert2|{username}|{newRevision}}}}}"
+        contributionsLogPage.text = contributionsLogText
+        contributionsLogPage.save(summary="Bot: Ein begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet.")
         mainLogPage = pywikibot.Page(
             self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten"
         )
-        if not f"{{{logPageTitle}}}" in mainLogPage.get(force=True):
-            mainLogPage.text = mainLogPage.text + f"\n{{{{{logPageTitle}}}}}"
-            mainLogPage.save(summary=f"Bot: Unterseite [[{logPageTitle}]] eingebunden.")
+        ensureIncludedAsTemplate(mainLogPage, contributionsLogPageTitle)
 
     def notifyGreeter(self, greeter: str, username: str, newRevision: int) -> None:
         self.saveNotificationInProject(greeter, username, newRevision)
@@ -431,8 +475,6 @@ class GreetedUserWatchBot(SingleSiteBot):
             greeterTalkPage.save(
                 summary="Bot: Ein von dir begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet."
             )
-
-    def g
 
     def treat(self, page: pywikibot.Page) -> None:
         change = page._rcinfo
@@ -471,6 +513,7 @@ def main() -> None:
     site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
     monkey_patch(site)
     redisDb = RedisDb(secret)
+    # GreetController(site, redisDb, secret).createAllGreeterSpecificPages()
     startWatchBot(site, redisDb)
     GreetController(site, redisDb, secret).run()
 
