@@ -435,6 +435,8 @@ class GreetedUserWatchBot(SingleSiteBot):
         self.generator = FaultTolerantLiveRCPageGenerator(self.site)
 
     def skip_page(self, page: pywikibot.Page) -> bool:
+        if page.namespace() < 0:
+            return True
         if not page.exists():
             return True
         return super().skip_page(page)
