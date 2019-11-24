@@ -68,6 +68,8 @@ def monkey_patch(site: Any) -> None:
 
 timezone = pytz.timezone("Europe/Berlin")
 
+inProduction = False
+
 
 def getDateString() -> str:
     localizedTime = datetime.now(timezone)
@@ -219,6 +221,8 @@ class GreetController:
         if greeter.getUserTalkPage().protection():
             pywikibot.warning(f"Talk page of '{greeter.username}' is protected, thus not eligible as greeter.")
             return False
+        if not inProduction and greeter.username != "Count Count":
+            return False
         cutoffTime = datetime.now() - timedelta(hours=24)
         lastActivityTimestamp = greeter.last_event.timestamp()
         if lastActivityTimestamp < cutoffTime:
@@ -285,11 +289,9 @@ class GreetController:
                 elif user.getUserTalkPage().exists():
                     # User talk page exists, will thus not be greeted.
                     pass
-                elif (
-                    not datetime(2019, 12, 1, 0, 0, tzinfo=timezone)
-                    < logevent.timestamp().replace(tzinfo=pytz.utc).astimezone(timezone)
-                    < datetime(2020, 1, 26, 0, 0, tzinfo=timezone)
-                ):
+                elif inProduction and not datetime(2019, 12, 1, 0, 0, tzinfo=timezone) < logevent.timestamp().replace(
+                    tzinfo=pytz.utc
+                ).astimezone(timezone) < datetime(2020, 1, 26, 0, 0, tzinfo=timezone):
                     # only greet users registered in eight week test period
                     pass
                 else:
@@ -401,6 +403,8 @@ class GreetController:
         pywikibot.output("Starting greet run...")
         self.reloadGreeters()
         allUsers = self.getUsersToGreet()
+        if not inProduction:
+            allUsers = allUsers[:10]
         usersToGreet: List[pywikibot.User] = []
         controlGroup: List[pywikibot.User] = []
         for user in allUsers:
@@ -416,7 +420,7 @@ class GreetController:
 
     def run(self) -> None:
         while True:
-            if 8 <= datetime.now(timezone).hour < 22:
+            if not inProduction or 8 <= datetime.now(timezone).hour < 22:
                 try:
                     self.doGreetRun()
                 except Exception:
@@ -519,7 +523,7 @@ def startWatchBot(site: pywikibot.site.APISite, redisDb: RedisDb) -> None:
 
 def main() -> None:
     pywikibot.handle_args()
-    secret = os.environ.get("GREETBOT_SECRET")
+    secret = os.environ.get("GREETBOT_SECRET") if inProduction else "12345abcdef"
     if not secret:
         raise Exception("Environment variable GREETBOT_SECRET not set")
     locale.setlocale(locale.LC_ALL, "de_DE.utf8")
