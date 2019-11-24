@@ -80,7 +80,7 @@ def getDateString() -> str:
 def ensureDateSectionExists(text: str) -> str:
     currentDateSection = f"=== {getDateString()} ==="
     if not currentDateSection in text:
-        text += f"\n\n{currentDateSection}"
+        text += f"\n<noinclude>\n{currentDateSection}</noinclude>"
     return text
 
 
