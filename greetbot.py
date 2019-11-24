@@ -473,7 +473,8 @@ class GreetedUserWatchBot(SingleSiteBot):
             text += f"\n\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatEditiert|{username}|{newRevision}}}}}"
             greeterTalkPage.text = text
             greeterTalkPage.save(
-                summary="Bot: Ein von dir begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet."
+                summary="Bot: Ein von dir begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet.",
+                minor=False,
             )
 
     def treat(self, page: pywikibot.Page) -> None:
