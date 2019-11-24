@@ -15,7 +15,7 @@ import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterator, List, Optional, Set, cast
+from typing import Any, Dict, Iterator, List, Optional, Set, cast, TypedDict
 
 import pytz
 from redis import Redis
@@ -140,6 +140,9 @@ def ensureIncludedAsTemplate(mainLogPage: pywikibot.Page, subLogPageTitle: str) 
         mainLogPage.save(summary=f"Bot: Unterseite [[{subLogPageTitle}]] eingebunden.")
 
 
+GreetedUserInfo = TypedDict("GreetedUserInfo", {"greeter": str, "normalEditSeen": str})
+
+
 class RedisDb:
     def __init__(self, secret: str) -> None:
         self.secret = secret
@@ -151,20 +154,23 @@ class RedisDb:
     def addGreetedUser(self, greeter: str, user: str) -> None:
         key = self.getKey(user)
         p = self.redis.pipeline()  # type: ignore
-        p.set(key, greeter)
-        p.sadd(f"{self.secret}:greetedUsers", user)
+        p.hset(key, "greeter", greeter)
+        p.hset(key, "normalEditSeen", "0")
         p.expire(key, timedelta(days=30))
+        p.sadd(f"{self.secret}:greetedUsers", user)
         p.execute()
 
     def addControlGroupUser(self, user: str) -> None:
         self.redis.sadd(f"{self.secret}:controlGroup", user)  # type: ignore
 
-    def getAndRemoveGreetedUserFromRedis(self, user: str) -> Optional[str]:
-        key = self.getKey(user)
-        greeter = self.redis.get(key)
-        if greeter:
-            self.redis.delete(key)  # type: ignore
-        return cast(Optional[str], greeter)
+    def getGreetedUserInfo(self, user: str) -> GreetedUserInfo:
+        return self.redis.hgetall(self.getKey(user))  # type: ignore
+
+    def setGreetedUserInfo(self, user: str, newUserInfo: GreetedUserInfo) -> None:
+        self.redis.hmset(self.getKey(user), newUserInfo)  # type: ignore
+
+    def removeGreetedUser(self, user: str) -> None:
+        self.redis.delete(self.getKey(user))  # type: ignore
 
     def getAllGreetedUsers(self) -> List[str]:
         return cast(List[str], self.redis.smembers(f"{self.secret}:greetedUsers"))  # type: ignore
@@ -425,11 +431,7 @@ class GreetedUserWatchBot(SingleSiteBot):
         self.generator = FaultTolerantLiveRCPageGenerator(self.site)
 
     def skip_page(self, page: pywikibot.Page) -> bool:
-        if page.namespace() != 3:
-            return True
-        elif not page.exists():
-            return True
-        elif page.isRedirectPage():
+        if not page.exists():
             return True
         return super().skip_page(page)
 
@@ -450,24 +452,28 @@ class GreetedUserWatchBot(SingleSiteBot):
                 inSection = True
         return False
 
-    def saveNotificationInProject(self, greeter: str, username: str, newRevision: int) -> None:
+    def saveNotificationInProject(self, greeter: str, username: str, newRevision: int, ownTalkPageEdit: bool) -> None:
         contributionsLogPageTitle = getContributionsLogPageTitle(greeter)
         contributionsLogPage = pywikibot.Page(self.site, contributionsLogPageTitle)
         contributionsLogText = contributionsLogPage.get(force=True) if contributionsLogPage.exists() else ""
         contributionsLogText = ensureHeaderForContributionLogExists(contributionsLogText, greeter)
         contributionsLogText = ensureDateSectionExists(contributionsLogText)
-        contributionsLogText += f"\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatEditiert2|{username}|{newRevision}}}}}"
+        summary = "Bearbeitung eines begrüßten Benutzers protokolliert."
+        contributionsLogText += (
+            f"\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatEditiert2"
+            f"|{username}|{newRevision}|{'1' if ownTalkPageEdit else ''}}}}}"
+        )
         contributionsLogPage.text = contributionsLogText
-        contributionsLogPage.save(summary="Bot: Ein begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet.")
+        contributionsLogPage.save(summary=summary)
         mainLogPage = pywikibot.Page(
             self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten"
         )
         ensureIncludedAsTemplate(mainLogPage, contributionsLogPageTitle)
 
-    def notifyGreeter(self, greeter: str, username: str, newRevision: int) -> None:
-        self.saveNotificationInProject(greeter, username, newRevision)
+    def notifyGreeter(self, greeter: str, username: str, newRevision: int, ownTalkPageEdit: bool) -> None:
+        self.saveNotificationInProject(greeter, username, newRevision, ownTalkPageEdit)
 
-        if self.greeterWantsToBeNotifiedOnTalkPage(greeter):
+        if self.greeterWantsToBeNotifiedOnTalkPage(greeter) and ownTalkPageEdit:
             greeterTalkPage = pywikibot.User(self.site, greeter).getUserTalkPage()
             text = greeterTalkPage.get(force=True) if greeterTalkPage.exists() else ""
             text += f"\n\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatEditiert|{username}|{newRevision}}}}}"
@@ -479,17 +485,23 @@ class GreetedUserWatchBot(SingleSiteBot):
 
     def treat(self, page: pywikibot.Page) -> None:
         change = page._rcinfo
-        if not change["type"] == "edit":
+        if not (change["type"] == "edit" or change["type"] == "new"):
             return
-        title = change["title"]
+
         username = change["user"]
-        newRevision = change["revision"]["new"]
-        if username != title[title.index(":") + 1 :]:
-            return
-        # user edited his own talk page
-        greeter = self.redisDb.getAndRemoveGreetedUserFromRedis(username)
-        if greeter:
-            self.notifyGreeter(greeter, username, newRevision)
+        greetedUserInfo = self.redisDb.getGreetedUserInfo(username)
+        if greetedUserInfo:
+            title = change["title"]
+            newRevision = change["revision"]["new"]
+            if page.namespace() == 3 and title[title.index(":") + 1 :]:
+                # user edited his own talk page for the first time after being greeted
+                self.redisDb.removeGreetedUser(username)
+                self.notifyGreeter(greetedUserInfo["greeter"], username, newRevision, True)
+            elif greetedUserInfo["normalEditSeen"] == "0":
+                # user edited somewhere else for the first time after being greeted
+                greetedUserInfo["normalEditSeen"] = "1"
+                self.redisDb.setGreetedUserInfo(username, greetedUserInfo)
+                self.notifyGreeter(greetedUserInfo["greeter"], username, newRevision, False)
 
 
 def runWatchBot(site: pywikibot.site.APISite, redisDb: RedisDb) -> None:
