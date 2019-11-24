@@ -321,7 +321,7 @@ class GreetController:
         )
         greeterTalkPage = greeterTalkPagePrefix + greeter.user.username
         userTalkPage.text = (
-            f"{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Willkommen|"
+            f"{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:Willkommen|"
             f"{greeter.signatureWithoutTimestamp}|{greeter.user.username}|{greeterTalkPage}}}}}"
         )
         userTalkPage.save(summary="Bot: Herzlich Willkommen bei Wikipedia!", watch=False)
