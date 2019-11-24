@@ -434,7 +434,7 @@ class GreetedUserWatchBot(SingleSiteBot):
         return super().skip_page(page)
 
     def greeterWantsToBeNotifiedOnTalkPage(self, greeter: str) -> bool:
-        projectPage = pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen")
+        projectPage = pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungsteam")
         inSection = False
         for line in projectPage.get(force=True).split("\n"):
             if inSection:
