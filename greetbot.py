@@ -420,7 +420,7 @@ class GreetController:
 
     def run(self) -> None:
         while True:
-            if not inProduction or 8 <= datetime.now(timezone).hour < 22:
+            if 8 <= datetime.now(timezone).hour < 22:
                 try:
                     self.doGreetRun()
                 except Exception:
