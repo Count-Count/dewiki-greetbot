@@ -195,7 +195,7 @@ class GreetController:
 
     def reloadGreeters(self) -> None:
         self.greeters = []
-        projectPage = pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen")
+        projectPage = pywikibot.Page(self.site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungsteam")
         inSection = False
         greetersSet: Set[str] = set()
         for line in projectPage.get(force=True).split("\n"):
