@@ -302,7 +302,7 @@ class GreetController:
         logPage.text = text
         logPage.save(summary="Bot: Logeinträge für neue Begrüßungen hinzugefügt.", watch=False)
         mainLogPage = pywikibot.Page(self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch")
-        ensureTemplateIncluded(mainLogPage, logPageTitle)
+        ensureIncludedAsTemplate(mainLogPage, logPageTitle)
 
     def greet(self, greeter: Greeter, user: pywikibot.User) -> None:
         pywikibot.output(f"Greeting '{user.username}' as '{greeter.user.username}'")
