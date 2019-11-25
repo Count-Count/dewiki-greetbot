@@ -91,6 +91,11 @@ def FaultTolerantLiveRCPageGenerator(site: pywikibot.site.BaseSite) -> Iterator[
         # The title in a log entry may have been suppressed
         if "title" not in entry and entry["type"] == "log":
             continue
+        if "\ufffd" in entry["title"]:
+            pywikibot.warning(
+                f"Title '{entry['title']}' contains (\\uFFFD 'REPLACEMENT CHARACTER'), Full entry: {entry!r}"
+            )
+            continue
         try:
             page = pywikibot.Page(site, entry["title"], entry["namespace"])
         except Exception:
@@ -534,7 +539,7 @@ def main() -> None:
     redisDb = RedisDb(secret)
     # GreetController(site, redisDb, secret).createAllGreeterSpecificPages()
     startWatchBot(site, redisDb)
-    GreetController(site, redisDb, secret).run()
+    # GreetController(site, redisDb, secret).run()
 
 
 if __name__ == "__main__":
