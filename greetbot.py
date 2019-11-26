@@ -386,18 +386,18 @@ class GreetController:
             text = ensureHeaderForLogExists("", greeter)
             logPage.text = text
             logPage.save(summary="Bot: Seite für Begrüßer angelegt.", watch=False)
-            mainLogPage = pywikibot.Page(self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch")
-            ensureIncludedAsTemplate(mainLogPage, logPageTitle)
+        mainLogPage = pywikibot.Page(self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch")
+        ensureIncludedAsTemplate(mainLogPage, logPageTitle)
         contributionsLogPageTitle = getContributionsLogPageTitle(greeter)
         contributionsLogPage = pywikibot.Page(self.site, contributionsLogPageTitle)
         if not contributionsLogPage.exists():
             contributionsLogText = ensureHeaderForContributionLogExists("", greeter)
             contributionsLogPage.text = contributionsLogText
             contributionsLogPage.save(summary="Bot: Seite für Begrüßer angelegt.")
-            mainLogPage = pywikibot.Page(
-                self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten"
-            )
-            ensureIncludedAsTemplate(mainLogPage, contributionsLogPageTitle)
+        mainLogPage = pywikibot.Page(
+            self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten"
+        )
+        ensureIncludedAsTemplate(mainLogPage, contributionsLogPageTitle)
 
     def createAllGreeterSpecificPages(self) -> None:
         self.reloadGreeters()
