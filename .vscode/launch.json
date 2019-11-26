@@ -29,5 +29,15 @@
             "console": "integratedTerminal",
             "args": []
         }
+        {
+            "name": "greetbot create pages",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/greetbot.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--simulate",
+            ]
+        }
     ]
 }

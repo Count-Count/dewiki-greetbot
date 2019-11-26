@@ -529,17 +529,20 @@ def startWatchBot(site: pywikibot.site.APISite, redisDb: RedisDb) -> None:
 
 
 def main() -> None:
-    pywikibot.handle_args()
-    secret = os.environ.get("GREETBOT_SECRET") if inProduction else "12345abcdef"
-    if not secret:
-        raise Exception("Environment variable GREETBOT_SECRET not set")
+    otherArgs = pywikibot.handle_args()
     locale.setlocale(locale.LC_ALL, "de_DE.utf8")
     site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
     monkey_patch(site)
+    secret = os.environ.get("GREETBOT_SECRET") if inProduction else "12345abcdef"
+    if not secret:
+        raise Exception("Environment variable GREETBOT_SECRET not set")
     redisDb = RedisDb(secret)
-    # GreetController(site, redisDb, secret).createAllGreeterSpecificPages()
-    startWatchBot(site, redisDb)
-    # GreetController(site, redisDb, secret).run()
+    if "--create-pages" in otherArgs:
+        GreetController(site, redisDb, secret).createAllGreeterSpecificPages()
+        return
+    else:
+        startWatchBot(site, redisDb)
+        # GreetController(site, redisDb, secret).run()
 
 
 if __name__ == "__main__":
