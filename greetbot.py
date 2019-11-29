@@ -504,7 +504,7 @@ class GreetedUserWatchBot(SingleSiteBot):
         if greetedUserInfo:
             title = change["title"]
             newRevision = change["revision"]["new"]
-            if page.namespace() == 3 and title[title.index(":") + 1 :]:
+            if page.namespace() == 3 and title[title.index(":") + 1 :] == username:
                 # user edited his own talk page for the first time after being greeted
                 self.redisDb.removeGreetedUser(username)
                 self.notifyGreeter(greetedUserInfo["greeter"], username, newRevision, True)
