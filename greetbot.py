@@ -542,7 +542,7 @@ def main() -> None:
         return
     else:
         startWatchBot(site, redisDb)
-        # GreetController(site, redisDb, secret).run()
+        GreetController(site, redisDb, secret).run()
 
 
 if __name__ == "__main__":
