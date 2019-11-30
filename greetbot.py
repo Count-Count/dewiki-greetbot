@@ -68,7 +68,7 @@ def monkey_patch(site: Any) -> None:
 
 timezone = pytz.timezone("Europe/Berlin")
 
-inProduction = False
+inProduction = True
 
 
 def getDateString() -> str:
