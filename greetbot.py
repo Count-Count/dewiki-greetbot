@@ -309,7 +309,7 @@ class GreetController:
                     pass
                 elif inProduction and not timezone.localize(datetime(2019, 12, 2, 0, 0)) < logevent.timestamp().replace(
                     tzinfo=pytz.utc
-                ).astimezone(timezone) < timezone.localize(datetime(2020, 1, 26, 0, 0)):
+                ).astimezone(timezone) < timezone.localize(datetime(2020, 1, 27, 0, 0)):
                     # only greet users registered in eight week test period
                     pass
                 else:
