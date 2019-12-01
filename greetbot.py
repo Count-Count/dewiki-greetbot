@@ -411,6 +411,8 @@ class GreetController:
     def doGreetRun(self) -> None:
         pywikibot.output("Starting greet run...")
         self.reloadGreeters()
+        greeterNames = [greeter.user.username for greeter in self.greeters]
+        pywikibot.output(f"Eligible greeters: {sorted(greeterNames)}")
         allUsers = self.getUsersToGreet()
         if not inProduction:
             allUsers = allUsers[:10]
