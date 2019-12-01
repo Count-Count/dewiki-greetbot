@@ -28,7 +28,7 @@
             "program": "${workspaceFolder}/greetbot.py",
             "console": "integratedTerminal",
             "args": []
-        }
+        },
         {
             "name": "greetbot create pages",
             "type": "python",
@@ -37,6 +37,16 @@
             "console": "integratedTerminal",
             "args": [
                 "--create-pages"
+            ]
+        }
+        {
+            "name": "greetbot list users",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/greetbot.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--list-user-groups"
             ]
         }
     ]

@@ -185,6 +185,10 @@ class RedisDb:
     def getAllControlGroupUsers(self) -> List[str]:
         return cast(List[str], self.redis.smembers(f"{self.secret}:controlGroup"))  # type: ignore
 
+    def deleteUserGroups(self) -> None:
+        self.redis.delete(f"{self.secret}:greetedUsers")  # type: ignore
+        self.redis.delete(f"{self.secret}:controlGroup")  # type: ignore
+
 
 class TalkPageExistsException(Exception):
     pass
@@ -541,6 +545,19 @@ def main() -> None:
     if "--create-pages" in otherArgs:
         GreetController(site, redisDb, secret).createAllGreeterSpecificPages()
         return
+    elif "--list-user-groups" in otherArgs:
+        print("Greeted users:")
+        for user in redisDb.getAllGreetedUsers():
+            print(f"* {user}")
+        print("Control group:")
+        for user in redisDb.getAllControlGroupUsers():
+            print(f"* {user}")
+        return
+    elif "--delete-user-groups" in otherArgs:
+        redisDb.deleteUserGroups()
+        return
+    elif otherArgs:
+        pywikibot.error(f"Unknown args: {otherArgs}")
     else:
         startWatchBot(site, redisDb)
         GreetController(site, redisDb, secret).run()
