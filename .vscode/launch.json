@@ -5,13 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
-            "type": "python",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal"
-        },
-        {
             "name": "greetbot",
             "type": "python",
             "request": "launch",
@@ -22,14 +15,6 @@
             ]
         },
         {
-            "name": "greetbot prod",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/greetbot.py",
-            "console": "integratedTerminal",
-            "args": []
-        },
-        {
             "name": "greetbot create pages",
             "type": "python",
             "request": "launch",
@@ -38,7 +23,7 @@
             "args": [
                 "--create-pages"
             ]
-        }
+        },
         {
             "name": "greetbot list users",
             "type": "python",
@@ -46,6 +31,7 @@
             "program": "${workspaceFolder}/greetbot.py",
             "console": "integratedTerminal",
             "args": [
+                "-simulate",
                 "--list-user-groups"
             ]
         }
