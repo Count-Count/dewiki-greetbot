@@ -556,11 +556,14 @@ def main() -> None:
     elif "--delete-user-groups" in otherArgs:
         redisDb.deleteUserGroups()
         return
+    elif "--run-bot" in otherArgs:
+        startWatchBot(site, redisDb)
+        GreetController(site, redisDb, secret).run()
+        return
     elif otherArgs:
         pywikibot.error(f"Unknown args: {otherArgs}")
     else:
-        startWatchBot(site, redisDb)
-        GreetController(site, redisDb, secret).run()
+        pywikibot.error(f"Missing mode")
 
 
 if __name__ == "__main__":

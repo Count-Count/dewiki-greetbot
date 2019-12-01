@@ -11,7 +11,8 @@
             "program": "${workspaceFolder}/greetbot.py",
             "console": "integratedTerminal",
             "args": [
-                "-simulate"
+                "-simulate",
+                "--run-bot",
             ]
         },
         {
