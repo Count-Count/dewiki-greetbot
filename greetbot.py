@@ -294,9 +294,9 @@ class GreetController:
                 elif user.getUserTalkPage().exists():
                     # User talk page exists, will thus not be greeted.
                     pass
-                elif inProduction and not datetime(2019, 12, 1, 0, 0, tzinfo=timezone) < logevent.timestamp().replace(
+                elif inProduction and not timezone.localize(datetime(2019, 12, 1, 0, 0)) < logevent.timestamp().replace(
                     tzinfo=pytz.utc
-                ).astimezone(timezone) < datetime(2020, 1, 26, 0, 0, tzinfo=timezone):
+                ).astimezone(timezone) < timezone.localize(datetime(2020, 1, 26, 0, 0)):
                     # only greet users registered in eight week test period
                     pass
                 else:
