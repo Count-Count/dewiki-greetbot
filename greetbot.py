@@ -155,29 +155,38 @@ class RedisDb:
         self.secret = secret
         self.redis = Redis(host="tools-redis" if os.name != "nt" else "localhost", decode_responses=True)
 
-    def getKey(self, greetedUser: str) -> str:
+    def getGreetedUserKey(self, greetedUser: str) -> str:
         return f"{self.secret}:greetedUser:{greetedUser}"
 
+    def getControlGroupUserKey(self, greetedUser: str) -> str:
+        return f"{self.secret}:controlGroup:{greetedUser}"
+
     def addGreetedUser(self, greeter: str, user: str) -> None:
-        key = self.getKey(user)
+        key = self.getGreetedUserKey(user)
         p = self.redis.pipeline()  # type: ignore
         p.hset(key, "greeter", greeter)
         p.hset(key, "normalEditSeen", "0")
-        p.expire(key, timedelta(days=30))
+        p.hset(key, "time", int(datetime.now().timestamp()))
+        p.expire(key, timedelta(days=90))
         p.sadd(f"{self.secret}:greetedUsers", user)
         p.execute()
 
     def addControlGroupUser(self, user: str) -> None:
-        self.redis.sadd(f"{self.secret}:controlGroup", user)  # type: ignore
+        key = self.getControlGroupUserKey(user)
+        p = self.redis.pipeline()  # type: ignore
+        p.hset(key, "time", int(datetime.now().timestamp()))
+        p.expire(key, timedelta(days=90))
+        p.sadd(f"{self.secret}:controlGroup", user)
+        p.execute()
 
     def getGreetedUserInfo(self, user: str) -> GreetedUserInfo:
-        return self.redis.hgetall(self.getKey(user))  # type: ignore
+        return self.redis.hgetall(self.getGreetedUserKey(user))  # type: ignore
 
     def setGreetedUserInfo(self, user: str, newUserInfo: GreetedUserInfo) -> None:
-        self.redis.hmset(self.getKey(user), newUserInfo)  # type: ignore
+        self.redis.hmset(self.getGreetedUserKey(user), newUserInfo)  # type: ignore
 
     def removeGreetedUser(self, user: str) -> None:
-        self.redis.delete(self.getKey(user))  # type: ignore
+        self.redis.delete(self.getGreetedUserKey(user))  # type: ignore
 
     def getAllGreetedUsers(self) -> List[str]:
         return cast(List[str], self.redis.smembers(f"{self.secret}:greetedUsers"))  # type: ignore
