@@ -174,9 +174,10 @@ class RedisDb:
     def addControlGroupUser(self, user: str) -> None:
         key = self.getControlGroupUserKey(user)
         p = self.redis.pipeline()  # type: ignore
-        p.hset(key, "time", int(datetime.now().timestamp()))
-        p.expire(key, timedelta(days=90))
-        p.sadd(f"{self.secret}:controlGroup", user)
+        if not p.hexists(key, "time"):
+            p.hset(key, "time", int(datetime.now().timestamp()))
+            p.expire(key, timedelta(days=90))
+            p.sadd(f"{self.secret}:controlGroup", user)
         p.execute()
 
     def getGreetedUserInfo(self, user: str) -> GreetedUserInfo:
