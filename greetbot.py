@@ -532,7 +532,8 @@ def main() -> None:
     otherArgs = pywikibot.handle_args()
     locale.setlocale(locale.LC_ALL, "de_DE.utf8")
     site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
-    monkey_patch(site)
+    if not inProduction:
+        monkey_patch(site)
     secret = os.environ.get("GREETBOT_SECRET") if inProduction else "12345abcdef"
     if not secret:
         raise Exception("Environment variable GREETBOT_SECRET not set")
