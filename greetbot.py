@@ -411,8 +411,7 @@ class GreetController:
     def doGreetRun(self) -> None:
         pywikibot.output("Starting greet run...")
         self.reloadGreeters()
-        greeterNames = [greeter.user.username for greeter in self.greeters]
-        pywikibot.output(f"Eligible greeters: {sorted(greeterNames)}")
+        pywikibot.output(f"Eligible greeters: {sorted(greeter.user.username for greeter in self.greeters)}")
         allUsers = self.getUsersToGreet()
         if not inProduction:
             allUsers = allUsers[:10]
@@ -420,6 +419,8 @@ class GreetController:
         controlGroup: List[pywikibot.User] = []
         for user in allUsers:
             (controlGroup if self.isInControlGroup(user) else usersToGreet).append(user)
+        pywikibot.output(f"Users to greet: {sorted(user.username for user in usersToGreet)}")
+        pywikibot.output(f"Users in control group: {sorted(user.username for user in controlGroup)}")
         pywikibot.output(
             f"Greeting {len(usersToGreet)} users with {len(self.greeters)} greeters (control group: {len(controlGroup)} users)..."
         )
