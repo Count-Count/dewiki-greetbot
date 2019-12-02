@@ -46,6 +46,17 @@
                 "-simulate",
                 "--delete-user-groups"
             ]
+        },
+        {
+            "name": "greetbot fixup",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/greetbot.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-simulate",
+                "--fixup"
+            ]
         }
     ]
 }

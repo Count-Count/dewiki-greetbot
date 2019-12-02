@@ -180,6 +180,14 @@ class RedisDb:
             p.sadd(f"{self.secret}:controlGroup", user)
             p.execute()
 
+    def addControlGroupUserWithTime(self, user: str, ts: datetime) -> None:
+        key = self.getControlGroupUserKey(user)
+        p = self.redis.pipeline()  # type: ignore
+        p.hset(key, "time", int(ts.timestamp()))
+        p.expire(key, timedelta(days=90))
+        p.sadd(f"{self.secret}:controlGroup", user)
+        p.execute()
+
     def getGreetedUserInfo(self, user: str) -> GreetedUserInfo:
         return self.redis.hgetall(self.getGreetedUserKey(user))  # type: ignore
 
@@ -548,6 +556,20 @@ def startWatchBot(site: pywikibot.site.APISite, redisDb: RedisDb) -> None:
     threading.Thread(target=runWatchBot, args=[site, redisDb]).start()
 
 
+def fixup(site: pywikibot.site.APISite, redisDb: RedisDb) -> None:
+    page = pywikibot.Page(site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Kontrollgruppe")
+    site.loadrevisions(page, starttime=datetime(2019, 12, 2, 0, 0), rvdir=True)
+    for rev in [x for x in page._revisions.values()]:
+        oldText = page.getOldVersion(rev.parent_id)
+        newText = page.getOldVersion(rev.revid)
+        addedText = newText[len(oldText) :]
+        for wikilink in pywikibot.link_regex.finditer(addedText):
+            title = wikilink.group("title").strip()
+            user = title[title.find(":") + 1 :]
+            # print(f"{user} - {rev.timestamp}")
+            redisDb.addControlGroupUserWithTime(user, rev.timestamp)
+
+
 def main() -> None:
     otherArgs = pywikibot.handle_args()
     locale.setlocale(locale.LC_ALL, "de_DE.utf8")
@@ -558,7 +580,9 @@ def main() -> None:
     if not secret:
         raise Exception("Environment variable GREETBOT_SECRET not set")
     redisDb = RedisDb(secret)
-    if "--create-pages" in otherArgs:
+    if "--fixup" in otherArgs:
+        fixup(site, redisDb)
+    elif "--create-pages" in otherArgs:
         GreetController(site, redisDb, secret).createAllGreeterSpecificPages()
     elif "--list-user-groups" in otherArgs:
         print("Greeted users:")
