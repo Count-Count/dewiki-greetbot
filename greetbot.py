@@ -560,7 +560,6 @@ def main() -> None:
     redisDb = RedisDb(secret)
     if "--create-pages" in otherArgs:
         GreetController(site, redisDb, secret).createAllGreeterSpecificPages()
-        return
     elif "--list-user-groups" in otherArgs:
         print("Greeted users:")
         for user in sorted(redisDb.getAllGreetedUsers()):
@@ -570,14 +569,11 @@ def main() -> None:
         for user in sorted(redisDb.getAllControlGroupUsers()):
             info = redisDb.getControlGroupUserInfo(user)
             print(f"* {user} - {datetime.fromtimestamp(int(info['time']), tz=timezone)}")
-        return
     elif "--delete-user-groups" in otherArgs:
         redisDb.deleteUserGroups()
-        return
     elif "--run-bot" in otherArgs:
         startWatchBot(site, redisDb)
         GreetController(site, redisDb, secret).run()
-        return
     elif otherArgs:
         pywikibot.error(f"Unknown args: {otherArgs}")
     else:
