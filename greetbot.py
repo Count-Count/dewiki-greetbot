@@ -241,7 +241,7 @@ class GreetController:
             pywikibot.warning(f"'{greeter.username}' does not have review rights and is thus not eligible as greeter.")
             return False
         if greeter.getUserTalkPage().protection():
-            pywikibot.warning(f"Talk page of '{greeter.username}' is protected, thus not eligible as greeter.")
+            # Talk page is protected, thus not eligible as greeter
             return False
         if not inProduction and greeter.username != "Count Count":
             return False
@@ -445,7 +445,8 @@ class GreetController:
 
     def run(self) -> None:
         while True:
-            if 8 <= datetime.now(timezone).hour < 22:
+            # if 8 <= datetime.now(timezone).hour < 22:
+            if True:
                 try:
                     self.doGreetRun()
                 except Exception:
