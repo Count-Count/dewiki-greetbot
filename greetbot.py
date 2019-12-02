@@ -166,7 +166,7 @@ class RedisDb:
         p = self.redis.pipeline()  # type: ignore
         p.hset(key, "greeter", greeter)
         p.hset(key, "normalEditSeen", "0")
-        p.hset(key, "time", int(datetime.now().timestamp()))
+        p.hset(key, "time", int(datetime.utcnow().timestamp()))
         p.expire(key, timedelta(days=90))
         p.sadd(f"{self.secret}:greetedUsers", user)
         p.execute()
@@ -175,7 +175,7 @@ class RedisDb:
         key = self.getControlGroupUserKey(user)
         if not self.redis.exists(key):  # type: ignore
             p = self.redis.pipeline()  # type: ignore
-            p.hset(key, "time", int(datetime.now().timestamp()))
+            p.hset(key, "time", int(datetime.utcnow().timestamp()))
             p.expire(key, timedelta(days=90))
             p.sadd(f"{self.secret}:controlGroup", user)
             p.execute()
