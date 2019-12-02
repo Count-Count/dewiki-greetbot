@@ -446,7 +446,6 @@ class GreetController:
     def run(self) -> None:
         while True:
             if 8 <= datetime.now(timezone).hour < 22:
-            if True:
                 try:
                     self.doGreetRun()
                 except Exception:
