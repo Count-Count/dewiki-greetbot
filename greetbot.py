@@ -189,6 +189,9 @@ class RedisDb:
     def removeGreetedUser(self, user: str) -> None:
         self.redis.delete(self.getGreetedUserKey(user))  # type: ignore
 
+    def getControlGroupUserInfo(self, user: str) -> GreetedUserInfo:
+        return self.redis.hgetall(self.getControlGroupUserKey(user))  # type: ignore
+
     def getAllGreetedUsers(self) -> List[str]:
         return cast(List[str], self.redis.smembers(f"{self.secret}:greetedUsers"))  # type: ignore
 
@@ -560,11 +563,13 @@ def main() -> None:
         return
     elif "--list-user-groups" in otherArgs:
         print("Greeted users:")
-        for user in redisDb.getAllGreetedUsers():
-            print(f"* {user}")
+        for user in sorted(redisDb.getAllGreetedUsers()):
+            info = redisDb.getGreetedUserInfo(user)
+            print(f"* {user} - {datetime.fromtimestamp(int(info['time']), tz=timezone)} - {info['greeter']}")
         print("Control group:")
-        for user in redisDb.getAllControlGroupUsers():
-            print(f"* {user}")
+        for user in sorted(redisDb.getAllControlGroupUsers()):
+            info = redisDb.getControlGroupUserInfo(user)
+            print(f"* {user} - {datetime.fromtimestamp(int(info['time']), tz=timezone)}")
         return
     elif "--delete-user-groups" in otherArgs:
         redisDb.deleteUserGroups()
