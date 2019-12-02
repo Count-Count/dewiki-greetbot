@@ -35,6 +35,17 @@
                 "-simulate",
                 "--list-user-groups"
             ]
+        },
+        {
+            "name": "greetbot delete users",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/greetbot.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-simulate",
+                "--delete-user-groups"
+            ]
         }
     ]
 }
