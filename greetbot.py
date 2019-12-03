@@ -147,7 +147,8 @@ def ensureIncludedAsTemplate(mainLogPage: pywikibot.Page, subLogPageTitle: str) 
         mainLogPage.save(summary=f"Bot: Unterseite [[{subLogPageTitle}]] eingebunden.")
 
 
-GreetedUserInfo = TypedDict("GreetedUserInfo", {"greeter": str, "normalEditSeen": str})
+GreetedUserInfo = TypedDict("GreetedUserInfo", {"greeter": str, "normalEditSeen": str, "time": str})
+ControlGroupUserInfo = TypedDict("ControlGroupUserInfo", {"time": str})
 
 
 class RedisDb:
@@ -189,7 +190,7 @@ class RedisDb:
     def removeGreetedUser(self, user: str) -> None:
         self.redis.delete(self.getGreetedUserKey(user))  # type: ignore
 
-    def getControlGroupUserInfo(self, user: str) -> GreetedUserInfo:
+    def getControlGroupUserInfo(self, user: str) -> ControlGroupUserInfo:
         return self.redis.hgetall(self.getControlGroupUserKey(user))  # type: ignore
 
     def getAllGreetedUsers(self) -> List[str]:
@@ -563,12 +564,15 @@ def main() -> None:
     elif "--list-user-groups" in otherArgs:
         print("Greeted users:")
         for user in sorted(redisDb.getAllGreetedUsers()):
-            info = redisDb.getGreetedUserInfo(user)
-            print(f"* {user} - {datetime.fromtimestamp(int(info['time']), tz=timezone)} - {info['greeter']}")
+            greetedUserInfo = redisDb.getGreetedUserInfo(user)
+            print(
+                f"* {user} - {datetime.fromtimestamp(int(greetedUserInfo['time']), tz=timezone)} - "
+                f"{greetedUserInfo['greeter']}"
+            )
         print("Control group:")
         for user in sorted(redisDb.getAllControlGroupUsers()):
-            info = redisDb.getControlGroupUserInfo(user)
-            print(f"* {user} - {datetime.fromtimestamp(int(info['time']), tz=timezone)}")
+            controlGroupUserInfo = redisDb.getControlGroupUserInfo(user)
+            print(f"* {user} - {datetime.fromtimestamp(int(controlGroupUserInfo['time']), tz=timezone)}")
     elif "--delete-user-groups" in otherArgs:
         redisDb.deleteUserGroups()
     elif "--run-bot" in otherArgs:
