@@ -11,7 +11,7 @@ def getUsersAndTimestamps(site: pywikibot.site.BaseSite, page: pywikibot.Page) -
     newText = None
     for rev in [x for x in actualRevs]:
         oldText = page.getOldVersion(rev.parent_id) if not newText else newText
-        newText = page.getOldVersion(rev.revid)
+        newText = rev.text
         addedText = newText[len(oldText) :]
         for wikilink in pywikibot.link_regex.finditer(addedText):
             title = wikilink.group("title").strip()
