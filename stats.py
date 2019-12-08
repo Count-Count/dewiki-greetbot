@@ -6,7 +6,7 @@ import pywikibot
 
 def getUsersAndTimestamps(site: pywikibot.site.BaseSite, page: pywikibot.Page) -> Dict[str, pywikibot.Timestamp]:
     res = {}
-    site.loadrevisions(page, starttime=datetime(2019, 12, 2, 0, 0), rvdir=True)
+    site.loadrevisions(page, starttime=datetime(2019, 12, 2, 0, 0), rvdir=True, content=True)
     actualRevs = page._revisions.values()
     newText = None
     for rev in [x for x in actualRevs]:
@@ -70,6 +70,7 @@ def getEditCounts(site: pywikibot.site.BaseSite, user: pywikibot.User, since: py
 
 def printStats() -> None:
     site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
+    site.login()
     controlGroup = getUsersAndTimestamps(
         site, pywikibot.Page(site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Kontrollgruppe")
     )
