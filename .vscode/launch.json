@@ -36,5 +36,15 @@
                 "--list-user-groups"
             ]
         }
+        {
+            "name": "greetbot quick stats",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/stats.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-simulate",
+            ]
+        }
     ]
 }
