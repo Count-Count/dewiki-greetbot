@@ -329,7 +329,7 @@ class GreetController:
         text = ensureHeaderForLogExists(text, greeter.username)
         text = ensureDateSectionExists(text)
         for user in users:
-            text += f"\n* [[Benutzer Diskussion:{user.username}|{user.username}]]"
+            text += f"\n* {{{{Benutzer|{user.username}}}}}"
         logPage.text = text
         logPage.save(summary="Bot: Logeinträge für neue Begrüßungen hinzugefügt.", watch=False)
         mainLogPage = pywikibot.Page(self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch")
