@@ -68,6 +68,15 @@ def getEditCounts(site: pywikibot.site.BaseSite, user: pywikibot.User, since: py
     return EditCounts(edits=edits, articleEdits=articleEdits, flaggedEdits=flaggedEdits)
 
 
+def isUserGloballyLocked(site, user: pywikibot.User) -> bool:
+    globallyLockedRequest = pywikibot.data.api.Request(
+        site=site,
+        parameters={"action": "query", "format": "json", "meta": "globaluserinfo", "guiuser": user.username,},
+    )
+    response = globallyLockedRequest.submit()
+    return "locked" in response["query"]["globaluserinfo"]
+
+
 def printStats() -> None:
     site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
     site.login()
@@ -87,7 +96,7 @@ def printStats() -> None:
         for (username, timestamp) in group.items():
             total += 1
             user = pywikibot.User(site, username)
-            if user.isBlocked():
+            if user.isBlocked() or isUserGloballyLocked(site, user):
                 blocked += 1
             editCounts = getEditCounts(site, user, timestamp)
             if editCounts.edits > 0:
