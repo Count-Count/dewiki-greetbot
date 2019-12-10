@@ -86,7 +86,7 @@ def printStats() -> None:
     greetedUsers = getUsersAndTimestamps(
         site, pywikibot.Page(site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßte Benutzer")
     )
-    for (name, group) in {"Begrüßte Benutzer": greetedUsers, "Kontrollgruppe": controlGroup}.items():
+    for (name, group) in {"Begrüßte Personen": greetedUsers, "Kontrollgruppe": controlGroup}.items():
         blocked = 0
         total = 0
         withEdits = 0
@@ -118,7 +118,7 @@ def printStats() -> None:
         # print(f"* {user.username}")
     total = len(greetedUsers) + len(controlGroup)
     print(
-        f"Begrüßte Benutzer : Kontrollgruppe = {len(greetedUsers)/total*100:0.2f}% : {len(controlGroup)/total*100:0.2f}%"
+        f"Begrüßte Personen : Kontrollgruppe = {len(greetedUsers)/total*100:0.2f}% : {len(controlGroup)/total*100:0.2f}%"
     )
 
 
