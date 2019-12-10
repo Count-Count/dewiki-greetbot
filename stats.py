@@ -107,8 +107,11 @@ def printStats() -> None:
                 withFlaggedEdits += 1
                 usersWithFlaggedEdits.append(user)
         print(
-            f"{name}: Gesamt: {total}, gesperrt: {blocked}, mit Bearbeitungen: {withEdits}, "
-            f"mit ANR-Bearbeitungen: {withArticleEdits}, mit gesichteten Bearbeitungen: {withFlaggedEdits}"
+            f"{name}: Gesamt: {total}, mit Bearbeitungen: {withEdits}, mit ANR-Bearbeitungen: {withArticleEdits}, "
+            f"mit gesichteten Bearbeitungen: {withFlaggedEdits}, gesperrt: {blocked}"
+        )
+        print(
+            f'| {name} || {total} || {withEdits} || {withArticleEdits} || {withFlaggedEdits} || <span style="color:red;">{blocked}</span>'
         )
         # print(f"{name}: Benutzer mit gesichteten Bearbeitungen")
         # for user in usersWithFlaggedEdits:
