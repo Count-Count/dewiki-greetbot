@@ -334,6 +334,24 @@ class GreetController:
         logPage.save(summary="Bot: Logeinträge für neue Begrüßungen hinzugefügt.", watch=False)
         mainLogPage = pywikibot.Page(self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßungslogbuch")
         ensureIncludedAsTemplate(mainLogPage, logPageTitle)
+        usersWithContribsText = ""
+        for user in users:
+            if len(list(user.contributions(total=1))) != 0:
+                usersWithContribsText += f"\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatBereitsVorherEditiert|{user.username}}}}}"
+        if len(usersWithContribsText) > 0:
+            contributionsLogPageTitle = getContributionsLogPageTitle(greeter.username)
+            contributionsLogPage = pywikibot.Page(self.site, contributionsLogPageTitle)
+            contributionsLogText = contributionsLogPage.get(force=True) if contributionsLogPage.exists() else ""
+            contributionsLogText = ensureHeaderForContributionLogExists(contributionsLogText, greeter.username)
+            contributionsLogText = ensureDateSectionExists(contributionsLogText)
+            summary = "Bot: Bereits erfolgte Bearbeitungen von begrüßten Benutzers protokolliert."
+            contributionsLogText += usersWithContribsText
+            contributionsLogPage.text = contributionsLogText
+            contributionsLogPage.save(summary=summary)
+            mainLogPage = pywikibot.Page(
+                self.site, f"Wikipedia:WikiProjekt Begrüßung von Neulingen/Bearbeitungen von Begrüßten"
+            )
+            ensureIncludedAsTemplate(mainLogPage, contributionsLogPageTitle)
 
     def greet(self, greeter: Greeter, user: pywikibot.User) -> None:
         pywikibot.output(f"Greeting '{user.username}' as '{greeter.user.username}'")
