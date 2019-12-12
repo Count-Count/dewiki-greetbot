@@ -20,13 +20,16 @@ def getUsersAndTimestamps(site: pywikibot.site.BaseSite, page: pywikibot.Page) -
     return res
 
 
-EditCounts = NamedTuple("HasEditsResult", [("edits", int), ("articleEdits", int), ("flaggedEdits", int)])
+EditCounts = NamedTuple(
+    "HasEditsResult", [("edits", int), ("articleEdits", int), ("flaggedEdits", int), ("fvnEdits", int)]
+)
 
 
 def getEditCounts(site: pywikibot.site.BaseSite, user: pywikibot.User, since: pywikibot.Timestamp) -> EditCounts:
     edits = 0
     articleEdits = 0
     flaggedEdits = 0
+    fvnEdits = 0
     contribsRequest = pywikibot.data.api.Request(
         site=site,
         parameters={
@@ -48,6 +51,8 @@ def getEditCounts(site: pywikibot.site.BaseSite, user: pywikibot.User, since: py
             if len(revs) != 0:
                 revs += "|"
             revs += str(contrib["revid"])
+        if contrib["ns"] == pywikibot.site.Namespace.PROJECT and contrib["title"] == "Wikipedia:Fragen von Neulingen":
+            fvnEdits += 1
     if len(revs) != 0:
         revisionsRequest = pywikibot.data.api.Request(
             site=site,
@@ -65,7 +70,7 @@ def getEditCounts(site: pywikibot.site.BaseSite, user: pywikibot.User, since: py
             for revision in pages[page]["revisions"]:
                 if "flagged" in revision:
                     flaggedEdits += 1
-    return EditCounts(edits=edits, articleEdits=articleEdits, flaggedEdits=flaggedEdits)
+    return EditCounts(edits=edits, articleEdits=articleEdits, flaggedEdits=flaggedEdits, fvnEdits=fvnEdits)
 
 
 def isUserGloballyLocked(site, user: pywikibot.User) -> bool:
@@ -92,6 +97,7 @@ def printStats() -> None:
         withEdits = 0
         withArticleEdits = 0
         withFlaggedEdits = 0
+        usersWithFvnEdits = 0
         usersWithFlaggedEdits = []
         for (username, timestamp) in group.items():
             total += 1
@@ -106,9 +112,11 @@ def printStats() -> None:
             if editCounts.flaggedEdits > 0:
                 withFlaggedEdits += 1
                 usersWithFlaggedEdits.append(user)
+            if editCounts.fvnEdits > 0:
+                usersWithFvnEdits += 1
         print(
             f"{name}: Gesamt: {total}, mit Bearbeitungen: {withEdits}, mit ANR-Bearbeitungen: {withArticleEdits}, "
-            f"mit gesichteten Bearbeitungen: {withFlaggedEdits}, gesperrt: {blocked}"
+            f"mit gesichteten Bearbeitungen: {withFlaggedEdits}, mit Bearbeitungen auf FvN: {usersWithFvnEdits}, gesperrt: {blocked}"
         )
         print(
             f'| {name} || {total} || {withEdits} || {withArticleEdits} || {withFlaggedEdits} || <span style="color:red;">{blocked}</span>'
