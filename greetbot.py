@@ -490,7 +490,7 @@ class GreetedUserWatchBot(SingleSiteBot):
         contributionsLogText = contributionsLogPage.get(force=True) if contributionsLogPage.exists() else ""
         contributionsLogText = ensureHeaderForContributionLogExists(contributionsLogText, greeter)
         contributionsLogText = ensureDateSectionExists(contributionsLogText)
-        summary = "Bearbeitung eines begrüßten Benutzers protokolliert."
+        summary = "Bot: Bearbeitung eines begrüßten Benutzers protokolliert."
         contributionsLogText += (
             f"\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatEditiert2"
             f"|{username}|{newRevision}|{'1' if ownTalkPageEdit else ''}}}}}"
