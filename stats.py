@@ -82,7 +82,8 @@ def isUserGloballyLocked(site, user: pywikibot.User) -> bool:
     return "locked" in response["query"]["globaluserinfo"]
 
 
-def printStats() -> None:
+def updateStats() -> None:
+    pywikibot.handle_args()
     site = cast(pywikibot.site.APISite, pywikibot.Site("de", "wikipedia"))
     site.login()
     controlGroup = getUsersAndTimestamps(
@@ -91,6 +92,7 @@ def printStats() -> None:
     greetedUsers = getUsersAndTimestamps(
         site, pywikibot.Page(site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Begrüßte Benutzer")
     )
+    lines = []
     for (name, group) in {"Begrüßte Personen": greetedUsers, "Kontrollgruppe": controlGroup}.items():
         blocked = 0
         total = 0
@@ -118,7 +120,7 @@ def printStats() -> None:
             f"{name}: Gesamt: {total}, mit Bearbeitungen: {withEdits}, mit ANR-Bearbeitungen: {withArticleEdits}, "
             f"mit gesichteten Bearbeitungen: {withFlaggedEdits}, mit Bearbeitungen auf FvN: {usersWithFvnEdits}, gesperrt: {blocked}"
         )
-        print(
+        lines.append(
             f'| {name} || {total} || {withEdits} || {withArticleEdits} || {withFlaggedEdits} || <span style="color:red;">{blocked}</span>'
         )
         # print(f"{name}: Benutzer mit gesichteten Bearbeitungen")
@@ -128,8 +130,21 @@ def printStats() -> None:
     print(
         f"Begrüßte Personen : Kontrollgruppe = {len(greetedUsers)/total*100:0.2f}% : {len(controlGroup)/total*100:0.2f}%"
     )
+    sectionText = f"""== Statistik ==
+Zwischenstand nach {(datetime.now() - datetime(2019,12,2)).days + 1} Tagen (2. Dezember 2019 – {datetime.now().strftime('%d. %B %Y')}). Aufgeführt ist immer die absolute Anzahl der begrüßten Personen. Es werden nur Bearbeitungen ab dem Zeitpunkt der Entscheidung für Begrüßung oder Kontrollgruppe gewertet.
+{{| class="wikitable" style="text-align:center"
+|-
+! Gruppe !! Gesamt !! Mit Bearbeitungen !! Mit ANR-Bearbeitungen !! Mit gesichteten Bearbeitungen !! Lokal oder global gesperrt
+|-
+{lines[0]}
+|-
+{lines[1]}
+|}}"""
+    statsPage = pywikibot.Page(site, "Wikipedia:WikiProjekt Begrüßung von Neulingen/Statistik")
+    statsPage.text = sectionText
+    statsPage.save(summary="Bot: Statistik aktualisiert.", watch=False)
 
 
 if __name__ == "__main__":
     locale.setlocale(locale.LC_ALL, "de_DE.utf8")
-    printStats()
+    updateStats()
