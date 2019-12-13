@@ -21,7 +21,15 @@ def getUsersAndTimestamps(site: pywikibot.site.BaseSite, page: pywikibot.Page) -
 
 
 EditCounts = NamedTuple(
-    "HasEditsResult", [("edits", int), ("articleEdits", int), ("flaggedEdits", int), ("fvnEdits", int)]
+    "HasEditsResult",
+    [
+        ("edits", int),
+        ("articleEdits", int),
+        ("flaggedEdits", int),
+        ("fvnEdits", int),
+        ("ownUserTalkPageEdits", int),
+        ("otherUserTalkPageEdits", int),
+    ],
 )
 
 
@@ -30,6 +38,8 @@ def getEditCounts(site: pywikibot.site.BaseSite, user: pywikibot.User, since: py
     articleEdits = 0
     flaggedEdits = 0
     fvnEdits = 0
+    ownUserTalkPageEdits = 0
+    otherUserTalkPageEdits = 0
     contribsRequest = pywikibot.data.api.Request(
         site=site,
         parameters={
@@ -53,6 +63,11 @@ def getEditCounts(site: pywikibot.site.BaseSite, user: pywikibot.User, since: py
             revs += str(contrib["revid"])
         if contrib["ns"] == pywikibot.site.Namespace.PROJECT and contrib["title"] == "Wikipedia:Fragen von Neulingen":
             fvnEdits += 1
+        if contrib["ns"] == pywikibot.site.Namespace.USER_TALK:
+            if contrib["title"][contrib["title"].find(":") + 1 :] == user.username:
+                ownUserTalkPageEdits += 1
+            else:
+                otherUserTalkPageEdits += 1
     if len(revs) != 0:
         revisionsRequest = pywikibot.data.api.Request(
             site=site,
@@ -70,7 +85,14 @@ def getEditCounts(site: pywikibot.site.BaseSite, user: pywikibot.User, since: py
             for revision in pages[page]["revisions"]:
                 if "flagged" in revision:
                     flaggedEdits += 1
-    return EditCounts(edits=edits, articleEdits=articleEdits, flaggedEdits=flaggedEdits, fvnEdits=fvnEdits)
+    return EditCounts(
+        edits=edits,
+        articleEdits=articleEdits,
+        flaggedEdits=flaggedEdits,
+        fvnEdits=fvnEdits,
+        ownUserTalkPageEdits=ownUserTalkPageEdits,
+        otherUserTalkPageEdits=otherUserTalkPageEdits,
+    )
 
 
 def isUserGloballyLocked(site, user: pywikibot.User) -> bool:
@@ -101,6 +123,8 @@ def updateStats() -> None:
         withFlaggedEdits = 0
         usersWithFvnEdits = 0
         usersWithFlaggedEdits = []
+        usersWithOwnUserTalkPageEdits = 0
+        usersWithOtherUserTalkPageEdits = 0
         for (username, timestamp) in group.items():
             total += 1
             user = pywikibot.User(site, username)
@@ -116,9 +140,15 @@ def updateStats() -> None:
                 usersWithFlaggedEdits.append(user)
             if editCounts.fvnEdits > 0:
                 usersWithFvnEdits += 1
+            if editCounts.ownUserTalkPageEdits > 0:
+                usersWithOwnUserTalkPageEdits += 1
+            if editCounts.otherUserTalkPageEdits > 0:
+                usersWithOtherUserTalkPageEdits += 1
         print(
             f"{name}: Gesamt: {total}, mit Bearbeitungen: {withEdits}, mit ANR-Bearbeitungen: {withArticleEdits}, "
-            f"mit gesichteten Bearbeitungen: {withFlaggedEdits}, mit Bearbeitungen auf FvN: {usersWithFvnEdits}, gesperrt: {blocked}"
+            f"mit gesichteten Bearbeitungen: {withFlaggedEdits}, mit Bearbeitungen auf FvN: {usersWithFvnEdits}, "
+            f"mit Bearbeitungen auf eigener BD: {usersWithOwnUserTalkPageEdits}, "
+            f"mit Bearbeitungen auf fremden BD: {usersWithOtherUserTalkPageEdits} gesperrt: {blocked}"
         )
         lines.append(
             f'| {name} || {total} || {withEdits} || {withArticleEdits} || {withFlaggedEdits} || <span style="color:red;">{blocked}</span>'
