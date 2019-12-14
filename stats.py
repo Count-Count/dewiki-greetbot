@@ -9,6 +9,11 @@ def getUsersAndTimestamps(site: pywikibot.site.BaseSite, page: pywikibot.Page) -
     site.loadrevisions(page, starttime=datetime(2019, 12, 2, 0, 0), rvdir=True, content=True)
     actualRevs = page._revisions.values()
     newText = None
+    allUsers = set()
+    for wikilink in pywikibot.link_regex.finditer(page.text):
+        title = wikilink.group("title").strip()
+        user = title[title.find(":") + 1 :]
+        allUsers.add(user)
     for rev in [x for x in actualRevs]:
         oldText = page.getOldVersion(rev.parent_id) if not newText else newText
         newText = rev.text
@@ -16,7 +21,8 @@ def getUsersAndTimestamps(site: pywikibot.site.BaseSite, page: pywikibot.Page) -
         for wikilink in pywikibot.link_regex.finditer(addedText):
             title = wikilink.group("title").strip()
             user = title[title.find(":") + 1 :]
-            res[user] = rev.timestamp
+            if user in allUsers:
+                res[user] = rev.timestamp
     return res
 
 
