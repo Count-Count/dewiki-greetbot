@@ -232,6 +232,9 @@ class GreetController:
         return "locked" in response["query"]["globaluserinfo"]
 
     def isEligibleAsGreeter(self, greeter: pywikibot.User) -> bool:
+        if not greeter.isRegistered():
+            pywikibot.warning(f"Greeter '{greeter.username}' does not exist.")
+            return False
         if greeter.isBlocked():
             pywikibot.warning(f"'{greeter.username}' is blocked and thus not eligible as greeter.")
             return False
