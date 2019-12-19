@@ -367,8 +367,8 @@ class GreetController:
         )
         greeterTalkPage = greeterTalkPagePrefix + greeter.user.username
         userTalkPage.text = (
-            f"{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:Willkommen|"
-            f"{greeter.signatureWithoutTimestamp}|{greeter.user.username}|{greeterTalkPage}}}}}"
+            f"{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:Willkommen|1="
+            f"{greeter.signatureWithoutTimestamp}|2={greeter.user.username}|3={greeterTalkPage}}}}}"
         )
         userTalkPage.save(summary="Bot: Herzlich Willkommen bei Wikipedia!", watch=False)
         self.redisDb.addGreetedUser(greeter.user.username, user.username)
@@ -514,7 +514,7 @@ class GreetedUserWatchBot(SingleSiteBot):
         summary = "Bot: Bearbeitung eines begrüßten Benutzers protokolliert."
         contributionsLogText += (
             f"\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatEditiert2"
-            f"|{username}|{newRevision}|{'1' if ownTalkPageEdit else ''}}}}}"
+            f"|1={username}|2={newRevision}|3={'1' if ownTalkPageEdit else ''}}}}}"
         )
         contributionsLogPage.text = contributionsLogText
         contributionsLogPage.save(summary=summary)
@@ -529,7 +529,7 @@ class GreetedUserWatchBot(SingleSiteBot):
         if self.greeterWantsToBeNotifiedOnTalkPage(greeter) and ownTalkPageEdit:
             greeterTalkPage = pywikibot.User(self.site, greeter).getUserTalkPage()
             text = greeterTalkPage.get(force=True) if greeterTalkPage.exists() else ""
-            text += f"\n\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatEditiert|{username}|{newRevision}}}}}"
+            text += f"\n\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatEditiert|1={username}|2={newRevision}}}}}"
             greeterTalkPage.text = text
             greeterTalkPage.save(
                 summary="Bot: Ein von dir begrüßter Benutzer hat seine Benutzerdiskussionsseite bearbeitet.",
