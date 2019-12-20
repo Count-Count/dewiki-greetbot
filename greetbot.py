@@ -340,7 +340,7 @@ class GreetController:
         usersWithContribsText = ""
         for user in users:
             if len(list(user.contributions(total=1))) != 0:
-                usersWithContribsText += f"\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatBereitsVorherEditiert|{user.username}}}}}"
+                usersWithContribsText += f"\n{{{{subst:Wikipedia:WikiProjekt Begrüßung von Neulingen/Vorlage:BegrüßterHatBereitsVorherEditiert|1={user.username}}}}}"
         if len(usersWithContribsText) > 0:
             contributionsLogPageTitle = getContributionsLogPageTitle(greeter.username)
             contributionsLogPage = pywikibot.Page(self.site, contributionsLogPageTitle)
