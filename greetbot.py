@@ -399,7 +399,7 @@ class GreetController:
 
     def isInControlGroup(self, user: pywikibot.User) -> bool:
         digest = hashlib.sha224((self.secret + user.username).encode("utf-8")).digest()
-        return digest[0] % 2 == 0
+        return digest[0] % 128 < 64
 
     def logGroup(self, page: pywikibot.Page, users: List[pywikibot.User]) -> None:
         text = page.get(force=True) if page.exists() else ""
