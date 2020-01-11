@@ -546,6 +546,10 @@ class GreetedUserWatchBot(SingleSiteBot):
         if greetedUserInfo:
             title = change["title"]
             newRevision = change["revision"]["new"]
+            if change["timestamp"] < float(greetedUserInfo["time"]):
+                # event before greeting
+                pywikibot.warn(f"Received event before greeting for user '{username}', rev id {newRevision}")
+                return
             if page.namespace() == 3 and title[title.index(":") + 1 :] == username:
                 # user edited his own talk page for the first time after being greeted
                 self.redisDb.removeGreetedUser(username)
