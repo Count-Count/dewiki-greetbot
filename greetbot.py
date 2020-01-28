@@ -561,7 +561,7 @@ def main() -> None:
         redisDb.deleteUserGroups()
     elif "--run-bot" in otherArgs:
         startWatchBot(site, redisDb)
-        GreetController(site, redisDb, secret).run()
+        # GreetController(site, redisDb, secret).run()
     elif otherArgs:
         pywikibot.error(f"Unknown args: {otherArgs}")
     else:
